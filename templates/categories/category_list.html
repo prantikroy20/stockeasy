@@ -1,0 +1,594 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Categories - Pharmacy Management{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Categories</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-1">Medicine Categories</h4>
+        <p class="text-muted mb-0">Organize and manage medicine categories</p>
+    </div>
+    <div>
+        {% if user.is_staff %}
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
+                <i class="fas fa-plus me-2"></i>Add Category
+            </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Total Categories</h6>
+                        <h4 class="mb-0">{{ total_categories|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Active Categories</h6>
+                        <h4 class="mb-0">{{ active_categories|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Total Medicines</h6>
+                        <h4 class="mb-0">{{ total_medicines|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-pills"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Avg per Category</h6>
+                        <h4 class="mb-0">{{ avg_medicines_per_category|default:0|floatformat:1 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <label for="search" class="form-label">Search Categories</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ request.GET.search }}" placeholder="Search by name or description...">
+            </div>
+            
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">All Status</option>
+                    <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                    <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>Inactive</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="sort" class="form-label">Sort By</label>
+                <select class="form-select" id="sort" name="sort">
+                    <option value="name" {% if request.GET.sort == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                    <option value="-name" {% if request.GET.sort == '-name' %}selected{% endif %}>Name (Z-A)</option>
+                    <option value="medicine_count" {% if request.GET.sort == 'medicine_count' %}selected{% endif %}>Medicine Count (Low-High)</option>
+                    <option value="-medicine_count" {% if request.GET.sort == '-medicine_count' %}selected{% endif %}>Medicine Count (High-Low)</option>
+                    <option value="created_at" {% if request.GET.sort == 'created_at' %}selected{% endif %}>Oldest First</option>
+                    <option value="-created_at" {% if request.GET.sort == '-created_at' %}selected{% endif %}>Newest First</option>
+                </select>
+            </div>
+            
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search me-1"></i>Search
+                </button>
+                {% if request.GET %}
+                    <a href="{% url 'categories:category_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Clear
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- View Toggle -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        {% if categories %}
+            <span class="text-muted">Showing {{ categories|length }} of {{ total_categories }} categories</span>
+        {% endif %}
+    </div>
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-secondary active" id="gridViewBtn">
+            <i class="fas fa-th"></i> Grid
+        </button>
+        <button type="button" class="btn btn-outline-secondary" id="listViewBtn">
+            <i class="fas fa-list"></i> List
+        </button>
+    </div>
+</div>
+
+<!-- Categories Grid View -->
+<div id="gridView">
+    {% if categories %}
+        <div class="row">
+            {% for category in categories %}
+            <div class="col-lg-4 col-md-6 mb-4">
+                <div class="card h-100 category-card" data-category-id="{{ category.pk }}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div class="flex-grow-1">
+                                <h5 class="card-title mb-1">
+                                    <a href="{% url 'medicines:category_detail' category.pk %}" 
+                                       class="text-decoration-none">{{ category.name }}</a>
+                                </h5>
+                                {% if category.description %}
+                                    <p class="card-text text-muted small">{{ category.description|truncatewords:15 }}</p>
+                                {% else %}
+                                    <p class="card-text text-muted small">No description available</p>
+                                {% endif %}
+                            </div>
+                            <div class="dropdown">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" 
+                                        data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'medicines:category_detail' category.pk %}">
+                                        <i class="fas fa-eye me-2"></i>View Details</a></li>
+                                    {% if user.is_staff %}
+                                        <li><a class="dropdown-item" href="#" 
+                                               onclick="editCategory({{ category.pk }}, '{{ category.name }}', '{{ category.description|default:'' }}')">
+                                            <i class="fas fa-edit me-2"></i>Edit</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" href="#" 
+                                               onclick="deleteCategory({{ category.pk }}, '{{ category.name }}')">
+                                            <i class="fas fa-trash me-2"></i>Delete</a></li>
+                                    {% endif %}
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="border-end">
+                                    <h6 class="mb-0 text-primary">{{ category.medicine_count|default:0 }}</h6>
+                                    <small class="text-muted">Medicines</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <div class="border-end">
+                                    <h6 class="mb-0 text-success">${{ category.total_value|default:0|floatformat:0 }}</h6>
+                                    <small class="text-muted">Value</small>
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <h6 class="mb-0 {% if category.low_stock_count > 0 %}text-warning{% else %}text-muted{% endif %}">
+                                    {{ category.low_stock_count|default:0 }}
+                                </h6>
+                                <small class="text-muted">Low Stock</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                <i class="fas fa-calendar me-1"></i>
+                                {{ category.created_at|date:"M d, Y" }}
+                            </small>
+                            <span class="badge {% if category.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if category.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No Categories Found</h5>
+            <p class="text-muted mb-4">No categories match your current filters.</p>
+            {% if user.is_staff %}
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
+                    <i class="fas fa-plus me-2"></i>Add First Category
+                </button>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+<!-- Categories List View -->
+<div id="listView" style="display: none;">
+    {% if categories %}
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Category</th>
+                            <th>Description</th>
+                            <th>Medicines</th>
+                            <th>Total Value</th>
+                            <th>Low Stock</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for category in categories %}
+                        <tr>
+                            <td>
+                                <div class="fw-medium">
+                                    <a href="{% url 'categories:category_detail' category.pk %}" 
+                                       class="text-decoration-none">{{ category.name }}</a>
+                                </div>
+                            </td>
+                            <td>
+                                {% if category.description %}
+                                    <span class="text-muted">{{ category.description|truncatewords:10 }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ category.medicine_count|default:0 }}</span>
+                            </td>
+                            <td>
+                                <span class="fw-medium">${{ category.total_value|default:0|floatformat:2 }}</span>
+                            </td>
+                            <td>
+                                {% if category.low_stock_count > 0 %}
+                                    <span class="badge bg-warning">{{ category.low_stock_count }}</span>
+                                {% else %}
+                                    <span class="text-muted">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge {% if category.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                                    {% if category.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ category.created_at|date:"M d, Y" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'medicines:category_detail' category.pk %}" 
+                                       class="btn btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if user.is_staff %}
+                                        <button type="button" class="btn btn-outline-secondary" 
+                                                onclick="editCategory({{ category.pk }}, '{{ category.name }}', '{{ category.description|default:'' }}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="deleteCategory({{ category.pk }}, '{{ category.name }}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+    <nav aria-label="Category pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page=1">
+                        <i class="fas fa-angle-double-left"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                        <i class="fas fa-angle-left"></i>
+                    </a>
+                </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">
+                        <i class="fas fa-angle-right"></i>
+                    </a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.paginator.num_pages }}">
+                        <i class="fas fa-angle-double-right"></i>
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+{% endif %}
+
+<!-- Category Modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categoryModalTitle">Add New Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="categoryForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" id="categoryId" name="category_id">
+                    
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="categoryName" name="name" required>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="categoryDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="categoryDescription" name="description" rows="3" 
+                                  placeholder="Optional description for this category"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="categoryActive" name="is_active" checked>
+                            <label class="form-check-label" for="categoryActive">
+                                Active Category
+                            </label>
+                            <div class="form-text">Inactive categories won't be available for new medicines</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveCategoryBtn">
+                        <i class="fas fa-save me-2"></i>Save Category
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // View toggle functionality
+    const gridViewBtn = document.getElementById('gridViewBtn');
+    const listViewBtn = document.getElementById('listViewBtn');
+    const gridView = document.getElementById('gridView');
+    const listView = document.getElementById('listView');
+    
+    gridViewBtn.addEventListener('click', function() {
+        gridView.style.display = 'block';
+        listView.style.display = 'none';
+        gridViewBtn.classList.add('active');
+        listViewBtn.classList.remove('active');
+        localStorage.setItem('categoryViewMode', 'grid');
+    });
+    
+    listViewBtn.addEventListener('click', function() {
+        gridView.style.display = 'none';
+        listView.style.display = 'block';
+        listViewBtn.classList.add('active');
+        gridViewBtn.classList.remove('active');
+        localStorage.setItem('categoryViewMode', 'list');
+    });
+    
+    // Restore view mode from localStorage
+    const savedViewMode = localStorage.getItem('categoryViewMode');
+    if (savedViewMode === 'list') {
+        listViewBtn.click();
+    }
+    
+    // Category form handling
+    const categoryModal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    const categoryForm = document.getElementById('categoryForm');
+    const categoryModalTitle = document.getElementById('categoryModalTitle');
+    const saveCategoryBtn = document.getElementById('saveCategoryBtn');
+    
+    categoryForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(categoryForm);
+        const categoryId = document.getElementById('categoryId').value;
+        const isEdit = categoryId !== '';
+        
+        const url = isEdit ? `/categories/${categoryId}/update/` : '/categories/create/';
+        const method = 'POST';
+        
+        // Add CSRF token
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch(url, {
+            method: method,
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                categoryModal.hide();
+                showAlert(data.message || `Category ${isEdit ? 'updated' : 'created'} successfully!`, 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                // Show validation errors
+                Object.keys(data.errors || {}).forEach(field => {
+                    const input = document.getElementById(`category${field.charAt(0).toUpperCase() + field.slice(1)}`);
+                    if (input) {
+                        input.classList.add('is-invalid');
+                        const feedback = input.nextElementSibling;
+                        if (feedback && feedback.classList.contains('invalid-feedback')) {
+                            feedback.textContent = data.errors[field][0];
+                        }
+                    }
+                });
+                
+                if (data.message) {
+                    showAlert(data.message, 'danger');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('An error occurred while saving the category.', 'danger');
+        });
+    });
+    
+    // Reset form when modal is hidden
+    document.getElementById('categoryModal').addEventListener('hidden.bs.modal', function() {
+        categoryForm.reset();
+        document.getElementById('categoryId').value = '';
+        categoryModalTitle.textContent = 'Add New Category';
+        saveCategoryBtn.innerHTML = '<i class="fas fa-save me-2"></i>Save Category';
+        
+        // Clear validation states
+        categoryForm.querySelectorAll('.is-invalid').forEach(input => {
+            input.classList.remove('is-invalid');
+        });
+    });
+    
+    // Auto-refresh every 60 seconds
+    setInterval(() => {
+        if (!document.hidden) {
+            location.reload();
+        }
+    }, 60000);
+});
+
+// Edit category function
+function editCategory(categoryId, name, description) {
+    document.getElementById('categoryId').value = categoryId;
+    document.getElementById('categoryName').value = name;
+    document.getElementById('categoryDescription').value = description;
+    document.getElementById('categoryModalTitle').textContent = 'Edit Category';
+    document.getElementById('saveCategoryBtn').innerHTML = '<i class="fas fa-save me-2"></i>Update Category';
+    
+    const categoryModal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    categoryModal.show();
+}
+
+// Delete category function
+function deleteCategory(categoryId, categoryName) {
+    if (confirm(`Are you sure you want to delete the category "${categoryName}"?\n\nThis action cannot be undone and may affect associated medicines.`)) {
+        fetch(`/categories/${categoryId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message || 'Category deleted successfully!', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                showAlert(data.message || 'Failed to delete category.', 'danger');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('An error occurred while deleting the category.', 'danger');
+        });
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

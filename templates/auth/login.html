@@ -1,0 +1,417 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Login - Pharmacy Management System{% endblock %}
+
+{% block extra_css %}
+<style>
+.login-container {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.login-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: none;
+    border-radius: 20px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.login-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 20px 20px 0 0;
+    padding: 2rem;
+    text-align: center;
+}
+
+.login-body {
+    padding: 2rem;
+}
+
+.form-control {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    padding: 12px 15px;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.btn-login {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 10px;
+    padding: 12px 30px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+}
+
+.pharmacy-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.9;
+}
+
+.floating-pills {
+    position: absolute;
+    opacity: 0.1;
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-20px); }
+}
+
+.pill-1 { top: 10%; left: 10%; animation-delay: 0s; }
+.pill-2 { top: 20%; right: 10%; animation-delay: 2s; }
+.pill-3 { bottom: 20%; left: 15%; animation-delay: 4s; }
+.pill-4 { bottom: 10%; right: 20%; animation-delay: 1s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-container d-flex align-items-center justify-content-center position-relative">
+    <!-- Floating Pills Animation -->
+    <div class="floating-pills pill-1">
+        <i class="fas fa-pills fa-3x"></i>
+    </div>
+    <div class="floating-pills pill-2">
+        <i class="fas fa-capsules fa-2x"></i>
+    </div>
+    <div class="floating-pills pill-3">
+        <i class="fas fa-tablets fa-2x"></i>
+    </div>
+    <div class="floating-pills pill-4">
+        <i class="fas fa-prescription-bottle fa-3x"></i>
+    </div>
+    
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-5">
+                <div class="card login-card">
+                    <div class="login-header">
+                        <div class="pharmacy-icon">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        <h3 class="mb-0">Welcome Back</h3>
+                        <p class="mb-0 opacity-75">Sign in to your account</p>
+                    </div>
+                    
+                    <div class="login-body">
+                        {% if messages %}
+                            {% for message in messages %}
+                                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                    {{ message }}
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            {% endfor %}
+                        {% endif %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                {% for error in form.non_field_errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <form method="post" id="loginForm">
+                            {% csrf_token %}
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.username.id_for_label }}" class="form-label">
+                                    <i class="fas fa-user me-2"></i>Username
+                                </label>
+                                <input type="text" 
+                                       class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
+                                       id="{{ form.username.id_for_label }}" 
+                                       name="{{ form.username.name }}" 
+                                       value="{{ form.username.value|default:'' }}"
+                                       placeholder="Enter your username"
+                                       required>
+                                {% if form.username.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.username.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">
+                                    <i class="fas fa-lock me-2"></i>Password
+                                </label>
+                                <div class="position-relative">
+                                    <input type="password" 
+                                           class="form-control {% if form.password.errors %}is-invalid{% endif %}" 
+                                           id="{{ form.password.id_for_label }}" 
+                                           name="{{ form.password.name }}"
+                                           placeholder="Enter your password"
+                                           required>
+                                    <button type="button" class="btn btn-link position-absolute end-0 top-50 translate-middle-y" 
+                                            id="togglePassword" style="border: none; background: none; z-index: 10;">
+                                        <i class="fas fa-eye" id="toggleIcon"></i>
+                                    </button>
+                                </div>
+                                {% if form.password.errors %}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.password.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mb-3 d-flex justify-content-between align-items-center">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="rememberMe" name="remember_me">
+                                    <label class="form-check-label" for="rememberMe">
+                                        Remember me
+                                    </label>
+                                </div>
+                                <a href="{% url 'auth:password_reset' %}" class="text-decoration-none">
+                                    Forgot password?
+                                </a>
+                            </div>
+                            
+                            <div class="d-grid mb-3">
+                                <button type="submit" class="btn btn-primary btn-login" id="loginBtn">
+                                    <span class="btn-text">
+                                        <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                                    </span>
+                                    <span class="btn-loading d-none">
+                                        <i class="fas fa-spinner fa-spin me-2"></i>Signing In...
+                                    </span>
+                                </button>
+                            </div>
+                            
+                            {% if next %}
+                                <input type="hidden" name="next" value="{{ next }}">
+                            {% endif %}
+                        </form>
+                        
+                        <div class="text-center mt-4">
+                            <p class="text-muted mb-0">
+                                Don't have an account? 
+                                <a href="{% url 'auth:register' %}" class="text-decoration-none fw-medium">
+                                    Sign up here
+                                </a>
+                            </p>
+                        </div>
+                        
+                        <hr class="my-4">
+                        
+                        <div class="text-center">
+                            <small class="text-muted">
+                                <i class="fas fa-shield-alt me-1"></i>
+                                Secure login powered by Django
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- System Info -->
+                <div class="text-center mt-4">
+                    <div class="card bg-transparent border-0">
+                        <div class="card-body text-white">
+                            <h5 class="mb-3">
+                                <i class="fas fa-clinic-medical me-2"></i>
+                                Pharmacy Management System
+                            </h5>
+                            <div class="row text-center">
+                                <div class="col-4">
+                                    <div class="mb-2">
+                                        <i class="fas fa-pills fa-2x mb-2 opacity-75"></i>
+                                        <div class="small">Medicine Management</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="mb-2">
+                                        <i class="fas fa-chart-line fa-2x mb-2 opacity-75"></i>
+                                        <div class="small">Analytics & Reports</div>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="mb-2">
+                                        <i class="fas fa-users fa-2x mb-2 opacity-75"></i>
+                                        <div class="small">User Management</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const loginForm = document.getElementById('loginForm');
+    const loginBtn = document.getElementById('loginBtn');
+    const togglePassword = document.getElementById('togglePassword');
+    const passwordInput = document.getElementById('{{ form.password.id_for_label }}');
+    const toggleIcon = document.getElementById('toggleIcon');
+    
+    // Password visibility toggle
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            if (type === 'text') {
+                toggleIcon.classList.remove('fa-eye');
+                toggleIcon.classList.add('fa-eye-slash');
+            } else {
+                toggleIcon.classList.remove('fa-eye-slash');
+                toggleIcon.classList.add('fa-eye');
+            }
+        });
+    }
+    
+    // Form submission with loading state
+    loginForm.addEventListener('submit', function(e) {
+        const btnText = loginBtn.querySelector('.btn-text');
+        const btnLoading = loginBtn.querySelector('.btn-loading');
+        
+        // Show loading state
+        btnText.classList.add('d-none');
+        btnLoading.classList.remove('d-none');
+        loginBtn.disabled = true;
+        
+        // Validate form
+        const username = document.getElementById('{{ form.username.id_for_label }}').value.trim();
+        const password = document.getElementById('{{ form.password.id_for_label }}').value;
+        
+        if (!username || !password) {
+            e.preventDefault();
+            
+            // Reset button state
+            btnText.classList.remove('d-none');
+            btnLoading.classList.add('d-none');
+            loginBtn.disabled = false;
+            
+            showAlert('Please fill in all required fields.', 'warning');
+            return;
+        }
+        
+        // If validation passes, form will submit normally
+        // Loading state will be reset by page reload or by error handling
+    });
+    
+    // Reset button state if there are form errors (page reloaded with errors)
+    if (document.querySelector('.alert-danger')) {
+        const btnText = loginBtn.querySelector('.btn-text');
+        const btnLoading = loginBtn.querySelector('.btn-loading');
+        
+        btnText.classList.remove('d-none');
+        btnLoading.classList.add('d-none');
+        loginBtn.disabled = false;
+    }
+    
+    // Auto-focus on username field
+    const usernameInput = document.getElementById('{{ form.username.id_for_label }}');
+    if (usernameInput && !usernameInput.value) {
+        usernameInput.focus();
+    }
+    
+    // Remember me functionality
+    const rememberMe = document.getElementById('rememberMe');
+    if (rememberMe) {
+        // Load saved preference
+        const savedUsername = localStorage.getItem('rememberedUsername');
+        if (savedUsername) {
+            usernameInput.value = savedUsername;
+            rememberMe.checked = true;
+            passwordInput.focus();
+        }
+        
+        // Save preference on form submit
+        loginForm.addEventListener('submit', function() {
+            if (rememberMe.checked) {
+                localStorage.setItem('rememberedUsername', usernameInput.value);
+            } else {
+                localStorage.removeItem('rememberedUsername');
+            }
+        });
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Enter key submits form
+        if (e.key === 'Enter' && (e.target === usernameInput || e.target === passwordInput)) {
+            e.preventDefault();
+            loginForm.submit();
+        }
+    });
+    
+    // Add floating animation to pills
+    const pills = document.querySelectorAll('.floating-pills');
+    pills.forEach((pill, index) => {
+        pill.style.animationDelay = `${index * 1.5}s`;
+    });
+});
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const loginBody = document.querySelector('.login-body');
+    loginBody.insertBefore(alertDiv, loginBody.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Add some interactive effects
+document.addEventListener('DOMContentLoaded', function() {
+    const card = document.querySelector('.login-card');
+    
+    // Add subtle hover effect to card
+    card.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-5px)';
+        this.style.transition = 'transform 0.3s ease';
+    });
+    
+    card.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
+    });
+    
+    // Add focus effects to form inputs
+    const inputs = document.querySelectorAll('.form-control');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            this.parentElement.style.transform = 'scale(1.02)';
+            this.parentElement.style.transition = 'transform 0.2s ease';
+        });
+        
+        input.addEventListener('blur', function() {
+            this.parentElement.style.transform = 'scale(1)';
+        });
+    });
+});
+</script>
+{% endblock %}

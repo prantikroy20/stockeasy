@@ -1,0 +1,553 @@
+<div class="alert alert-success d-flex align-items-center mb-3">
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Financial Report - Medicine Stock Management{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'dashboard:reports' %}">Reports</a></li>
+<li class="breadcrumb-item active">Financial Report</li>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-chart-line me-2"></i>
+            <span>Financial Report</span>
+            <small class="text-muted">Comprehensive financial analysis including revenue, costs, profit margins, and inventory valuation.</small>
+        </h1>
+    </div>
+</div>
+
+<!-- Key Financial Metrics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <h4 class="card-title text-success">${{ total_revenue|floatformat:2|default:"0.00" }}</h4>
+                <p class="card-text">Total Revenue</p>
+                <small class="text-muted">
+                    {% if revenue_change >= 0 %}
+                        <i class="fas fa-arrow-up text-success"></i> +{{ revenue_change|floatformat:1 }}%
+                    {% else %}
+                        <i class="fas fa-arrow-down text-danger"></i> {{ revenue_change|floatformat:1 }}%
+                    {% endif %}
+                    vs last period
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <h4 class="card-title text-warning">${{ total_costs|floatformat:2|default:"0.00" }}</h4>
+                <p class="card-text">Total Costs</p>
+                <small class="text-muted">
+                    {% if cost_change >= 0 %}
+                        <i class="fas fa-arrow-up text-danger"></i> +{{ cost_change|floatformat:1 }}%
+                    {% else %}
+                        <i class="fas fa-arrow-down text-success"></i> {{ cost_change|floatformat:1 }}%
+                    {% endif %}
+                    vs last period
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <h4 class="card-title text-info">${{ gross_profit|floatformat:2|default:"0.00" }}</h4>
+                <p class="card-text">Gross Profit</p>
+                <small class="text-muted">
+                    Margin: {{ profit_margin|floatformat:1|default:"0.0" }}%
+                </small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <h4 class="card-title text-primary">${{ inventory_value|floatformat:2|default:"0.00" }}</h4>
+                <p class="card-text">Inventory Value</p>
+                <small class="text-muted">
+                    Turnover: {{ inventory_turnover|floatformat:1|default:"0.0" }}x
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Summary Table -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h6 class="mb-0"><i class="fas fa-table me-2"></i>Financial Summary</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Current Period</th>
+                        <th>Previous Period</th>
+                        <th>Change</th>
+                        <th>% Change</th>
+                        <th>Target</th>
+                        <th>Performance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Total Revenue</strong></td>
+                        <td>${{ total_revenue|floatformat:2 }}</td>
+                        <td>${{ previous_revenue|floatformat:2|default:"0.00" }}</td>
+                        <td class="{% if revenue_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ${{ revenue_change_amount|floatformat:2|default:"0.00" }}
+                        </td>
+                        <td class="{% if revenue_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ revenue_change|floatformat:1|default:"0.0" }}%
+                        </td>
+                        <td>${{ revenue_target|floatformat:2|default:"0.00" }}</td>
+                        <td>
+                            {% if revenue_vs_target >= 100 %}
+                                <span class="badge bg-success">Above Target</span>
+                            {% elif revenue_vs_target >= 90 %}
+                                <span class="badge bg-info">Near Target</span>
+                            {% else %}
+                                <span class="badge bg-warning">Below Target</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Total Costs</strong></td>
+                        <td>${{ total_costs|floatformat:2 }}</td>
+                        <td>${{ previous_costs|floatformat:2|default:"0.00" }}</td>
+                        <td class="{% if cost_change <= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ${{ cost_change_amount|floatformat:2|default:"0.00" }}
+                        </td>
+                        <td class="{% if cost_change <= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ cost_change|floatformat:1|default:"0.0" }}%
+                        </td>
+                        <td>${{ cost_target|floatformat:2|default:"0.00" }}</td>
+                        <td>
+                            {% if cost_vs_target <= 100 %}
+                                <span class="badge bg-success">Under Budget</span>
+                            {% elif cost_vs_target <= 110 %}
+                                <span class="badge bg-warning">Near Budget</span>
+                            {% else %}
+                                <span class="badge bg-danger">Over Budget</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Gross Profit</strong></td>
+                        <td>${{ gross_profit|floatformat:2 }}</td>
+                        <td>${{ previous_profit|floatformat:2|default:"0.00" }}</td>
+                        <td class="{% if profit_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ${{ profit_change_amount|floatformat:2|default:"0.00" }}
+                        </td>
+                        <td class="{% if profit_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ profit_change|floatformat:1|default:"0.0" }}%
+                        </td>
+                        <td>${{ profit_target|floatformat:2|default:"0.00" }}</td>
+                        <td>
+                            {% if profit_vs_target >= 100 %}
+                                <span class="badge bg-success">Above Target</span>
+                            {% elif profit_vs_target >= 90 %}
+                                <span class="badge bg-info">Near Target</span>
+                            {% else %}
+                                <span class="badge bg-warning">Below Target</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Profit Margin</strong></td>
+                        <td>{{ profit_margin|floatformat:1 }}%</td>
+                        <td>{{ previous_profit_margin|floatformat:1|default:"0.0" }}%</td>
+                        <td class="{% if margin_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ margin_change|floatformat:1|default:"0.0" }}pp
+                        </td>
+                        <td class="{% if margin_change >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {{ margin_change_percent|floatformat:1|default:"0.0" }}%
+                        </td>
+                        <td>{{ margin_target|floatformat:1|default:"0.0" }}%</td>
+                        <td>
+                            {% if profit_margin >= margin_target %}
+                                <span class="badge bg-success">Above Target</span>
+                            {% elif profit_margin >= margin_target|add:"-2" %}
+                                <span class="badge bg-info">Near Target</span>
+                            {% else %}
+                                <span class="badge bg-warning">Below Target</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Revenue and Cost Breakdown -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Revenue Breakdown</h6>
+            </div>
+            <div class="card-body">
+                {% if revenue_by_category %}
+                {% for category in revenue_by_category %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">{{ category.name }}</h6>
+                        <small class="text-muted">{{ category.transaction_count }} transactions</small>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-success">${{ category.revenue|floatformat:2 }}</strong>
+                        <div class="progress mt-1" style="width: 100px; height: 6px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {% widthratio category.revenue total_revenue 100 %}%"></div>
+                        </div>
+                        <small class="text-muted">{{ category.percentage|floatformat:1 }}%</small>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No revenue data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Cost Breakdown</h6>
+            </div>
+            <div class="card-body">
+                {% if cost_by_category %}
+                {% for category in cost_by_category %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">{{ category.name }}</h6>
+                        <small class="text-muted">{{ category.purchase_count }} purchases</small>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-warning">${{ category.cost|floatformat:2 }}</strong>
+                        <div class="progress mt-1" style="width: 100px; height: 6px;">
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {% widthratio category.cost total_costs 100 %}%"></div>
+                        </div>
+                        <small class="text-muted">{{ category.percentage|floatformat:1 }}%</small>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No cost data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Monthly Financial Trends -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>Monthly Financial Trends</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Revenue</th>
+                        <th>Costs</th>
+                        <th>Profit</th>
+                        <th>Margin</th>
+                        <th>Transactions</th>
+                        <th>Avg Order Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for month in monthly_trends %}
+                    <tr>
+                        <td><strong>{{ month.month_name }}</strong></td>
+                        <td>${{ month.revenue|floatformat:2 }}</td>
+                        <td>${{ month.costs|floatformat:2 }}</td>
+                        <td class="{% if month.profit >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            ${{ month.profit|floatformat:2 }}
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if month.margin >= 20 %}success{% elif month.margin >= 10 %}info{% elif month.margin >= 0 %}warning{% else %}danger{% endif %}">
+                                {{ month.margin|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>{{ month.transaction_count }}</td>
+                        <td>${{ month.avg_order_value|floatformat:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted">No monthly data available.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Top Performing Products -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="fas fa-star me-2"></i>Top Revenue Generators</h6>
+            </div>
+            <div class="card-body">
+                {% if top_revenue_products %}
+                {% for product in top_revenue_products %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">{{ product.name }}</h6>
+                        <small class="text-muted">{{ product.category }} • {{ product.units_sold }} units sold</small>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-primary">${{ product.revenue|floatformat:2 }}</strong>
+                        <br><small class="text-muted">{{ product.revenue_percentage|floatformat:1 }}% of total</small>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No product revenue data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="fas fa-percentage me-2"></i>Highest Profit Margins</h6>
+            </div>
+            <div class="card-body">
+                {% if highest_margin_products %}
+                {% for product in highest_margin_products %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">{{ product.name }}</h6>
+                        <small class="text-muted">{{ product.category }} • ${{ product.unit_price|floatformat:2 }}/unit</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-success">{{ product.profit_margin|floatformat:1 }}%</span>
+                        <br><small class="text-muted">${{ product.profit_per_unit|floatformat:2 }}/unit</small>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No profit margin data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inventory Valuation -->
+<div class="card mb-4">
+    <div class="card-header bg-secondary text-white">
+        <h6 class="mb-0"><i class="fas fa-boxes me-2"></i>Inventory Valuation Analysis</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card border-info">
+                    <div class="card-body text-center">
+                        <h5 class="text-info">${{ current_inventory_value|floatformat:2|default:"0.00" }}</h5>
+                        <p class="mb-0">Current Inventory Value</p>
+                        <small class="text-muted">{{ total_inventory_items|default:0 }} items</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-warning">
+                    <div class="card-body text-center">
+                        <h5 class="text-warning">${{ dead_stock_value|floatformat:2|default:"0.00" }}</h5>
+                        <p class="mb-0">Dead Stock Value</p>
+                        <small class="text-muted">{{ dead_stock_items|default:0 }} items</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-danger">
+                    <div class="card-body text-center">
+                        <h5 class="text-danger">${{ expired_stock_value|floatformat:2|default:"0.00" }}</h5>
+                        <p class="mb-0">Expired Stock Value</p>
+                        <small class="text-muted">{{ expired_stock_items|default:0 }} items</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <h6>Inventory Health Metrics:</h6>
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ inventory_turnover_rate }}%"></div>
+                        </div>
+                        <small>Turnover Rate: {{ inventory_turnover|floatformat:1 }}x</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: {{ stock_accuracy_rate }}%"></div>
+                        </div>
+                        <small>Stock Accuracy: {{ stock_accuracy_rate|floatformat:1 }}%</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar bg-warning" role="progressbar" 
+                                 style="width: {{ carrying_cost_ratio }}%"></div>
+                        </div>
+                        <small>Carrying Cost: {{ carrying_cost_ratio|floatformat:1 }}%</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="progress mb-2" style="height: 10px;">
+                            <div class="progress-bar bg-danger" role="progressbar" 
+                                 style="width: {{ obsolescence_rate }}%"></div>
+                        </div>
+                        <small>Obsolescence: {{ obsolescence_rate|floatformat:1 }}%</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Ratios and KPIs -->
+<div class="card mb-4">
+    <div class="card-header bg-dark text-white">
+        <h6 class="mb-0"><i class="fas fa-calculator me-2"></i>Key Financial Ratios & KPIs</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Profitability Ratios:</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td>Gross Profit Margin</td>
+                        <td><strong>{{ profit_margin|floatformat:1 }}%</strong></td>
+                        <td>
+                            <span class="badge bg-{% if profit_margin >= 25 %}success{% elif profit_margin >= 15 %}info{% elif profit_margin >= 5 %}warning{% else %}danger{% endif %}">
+                                {% if profit_margin >= 25 %}Excellent{% elif profit_margin >= 15 %}Good{% elif profit_margin >= 5 %}Fair{% else %}Poor{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Return on Investment</td>
+                        <td><strong>{{ roi|floatformat:1|default:"0.0" }}%</strong></td>
+                        <td>
+                            <span class="badge bg-{% if roi >= 15 %}success{% elif roi >= 10 %}info{% elif roi >= 5 %}warning{% else %}danger{% endif %}">
+                                {% if roi >= 15 %}Excellent{% elif roi >= 10 %}Good{% elif roi >= 5 %}Fair{% else %}Poor{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Revenue Growth Rate</td>
+                        <td><strong>{{ revenue_growth_rate|floatformat:1|default:"0.0" }}%</strong></td>
+                        <td>
+                            <span class="badge bg-{% if revenue_growth_rate >= 10 %}success{% elif revenue_growth_rate >= 5 %}info{% elif revenue_growth_rate >= 0 %}warning{% else %}danger{% endif %}">
+                                {% if revenue_growth_rate >= 10 %}Strong{% elif revenue_growth_rate >= 5 %}Moderate{% elif revenue_growth_rate >= 0 %}Slow{% else %}Declining{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Efficiency Ratios:</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td>Inventory Turnover</td>
+                        <td><strong>{{ inventory_turnover|floatformat:1 }}x</strong></td>
+                        <td>
+                            <span class="badge bg-{% if inventory_turnover >= 6 %}success{% elif inventory_turnover >= 4 %}info{% elif inventory_turnover >= 2 %}warning{% else %}danger{% endif %}">
+                                {% if inventory_turnover >= 6 %}Excellent{% elif inventory_turnover >= 4 %}Good{% elif inventory_turnover >= 2 %}Fair{% else %}Poor{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Days Sales Outstanding</td>
+                        <td><strong>{{ days_sales_outstanding|floatformat:0|default:"0" }} days</strong></td>
+                        <td>
+                            <span class="badge bg-{% if days_sales_outstanding <= 30 %}success{% elif days_sales_outstanding <= 45 %}info{% elif days_sales_outstanding <= 60 %}warning{% else %}danger{% endif %}">
+                                {% if days_sales_outstanding <= 30 %}Excellent{% elif days_sales_outstanding <= 45 %}Good{% elif days_sales_outstanding <= 60 %}Fair{% else %}Poor{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Asset Utilization</td>
+                        <td><strong>{{ asset_utilization|floatformat:1|default:"0.0" }}%</strong></td>
+                        <td>
+                            <span class="badge bg-{% if asset_utilization >= 80 %}success{% elif asset_utilization >= 60 %}info{% elif asset_utilization >= 40 %}warning{% else %}danger{% endif %}">
+                                {% if asset_utilization >= 80 %}Excellent{% elif asset_utilization >= 60 %}Good{% elif asset_utilization >= 40 %}Fair{% else %}Poor{% endif %}
+                            </span>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Insights and Recommendations -->
+<div class="alert alert-info">
+    <h6><i class="fas fa-lightbulb me-2"></i>Financial Insights & Recommendations</h6>
+    <div class="row">
+        <div class="col-md-6">
+            <h6>Key Insights:</h6>
+            <ul class="mb-0">
+                <li>Current profit margin is {{ profit_margin|floatformat:1 }}% 
+                    {% if profit_margin >= 20 %}(Excellent performance){% elif profit_margin >= 10 %}(Good performance){% elif profit_margin >= 5 %}(Needs improvement){% else %}(Critical - requires immediate attention){% endif %}
+                </li>
+                {% if best_performing_category %}
+                <li>{{ best_performing_category.name }} is the most profitable category ({{ best_performing_category.profit_margin|floatformat:1 }}% margin)</li>
+                {% endif %}
+                <li>Inventory turnover is {{ inventory_turnover|floatformat:1 }}x 
+                    {% if inventory_turnover >= 6 %}(Excellent){% elif inventory_turnover >= 4 %}(Good){% elif inventory_turnover >= 2 %}(Fair){% else %}(Poor - consider reducing stock levels){% endif %}
+                </li>
+                {% if dead_stock_value > 0 %}
+                <li>Dead stock represents ${{ dead_stock_value|floatformat:2 }} ({{ dead_stock_percentage|floatformat:1 }}% of inventory)</li>
+                {% endif %}
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h6>Recommendations:</h6>
+            <ul class="mb-0">
+                {% if profit_margin < 15 %}
+                <li>Review pricing strategy to improve profit margins</li>
+                <li>Analyze cost structure and identify areas for reduction</li>
+                {% endif %}
+                {% if inventory_turnover < 4 %}
+                <li>Optimize inventory levels to improve cash flow</li>
+                <li>Implement demand forecasting to reduce overstock</li>
+                {% endif %}
+                {% if dead_stock_value > 0 %}
+                <li>Develop strategies to liquidate dead stock</li>
+                <li>Implement better demand planning to prevent future dead stock</li>
+                {% endif %}
+                <li>Focus on high-margin products for growth</li>
+                <li>Monitor financial KPIs regularly for early trend detection</li>
+            </ul>
+        </div>
+    </div>
+</div>

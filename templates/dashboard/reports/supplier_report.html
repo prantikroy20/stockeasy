@@ -1,0 +1,447 @@
+<div class="alert alert-info d-flex align-items-center mb-3">
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Supplier Report - Medicine Stock Management{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'dashboard:reports' %}">Reports</a></li>
+<li class="breadcrumb-item active">Supplier Report</li>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-truck me-2"></i>
+            <span>Supplier Report</span>
+            <small class="text-muted">Comprehensive analysis of supplier performance including delivery metrics, pricing, and reliability data.</small>
+        </h1>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-info">
+            <tr>
+                <th>Supplier Name</th>
+                <th>Contact Info</th>
+                <th>Medicines Supplied</th>
+                <th>Total Orders</th>
+                <th>Total Value</th>
+                <th>Avg Order Value</th>
+                <th>Last Order</th>
+                <th>Reliability</th>
+                <th>Performance</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for supplier in report_data %}
+            <tr>
+                <td>
+                    <strong>{{ supplier.name }}</strong>
+                    {% if supplier.is_preferred %}
+                        <span class="badge bg-success ms-2">Preferred</span>
+                    {% endif %}
+                    {% if supplier.is_active %}
+                        <span class="badge bg-primary ms-2">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary ms-2">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div>
+                        {% if supplier.email %}
+                            <i class="fas fa-envelope me-1"></i>
+                            <small>{{ supplier.email }}</small><br>
+                        {% endif %}
+                        {% if supplier.phone %}
+                            <i class="fas fa-phone me-1"></i>
+                            <small>{{ supplier.phone }}</small><br>
+                        {% endif %}
+                        {% if supplier.address %}
+                            <i class="fas fa-map-marker-alt me-1"></i>
+                            <small class="text-truncate d-inline-block" style="max-width: 150px;" title="{{ supplier.address }}">
+                                {{ supplier.address }}
+                            </small>
+                        {% endif %}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-primary">{{ supplier.medicine_count }}</span>
+                    {% if supplier.medicine_count > 0 %}
+                        <br><small class="text-muted">{{ supplier.medicine_percentage|floatformat:1 }}% of catalog</small>
+                    {% endif %}
+                </td>
+                <td>
+                    <strong>{{ supplier.total_orders|default:0 }}</strong>
+                    {% if supplier.total_orders > 0 %}
+                        <br><small class="text-muted">{{ supplier.order_frequency }} avg/month</small>
+                    {% endif %}
+                </td>
+                <td>
+                    <strong>${{ supplier.total_value|floatformat:2|default:"0.00" }}</strong>
+                    {% if supplier.total_value > 0 %}
+                        <br><small class="text-muted">{{ supplier.value_percentage|floatformat:1 }}% of total</small>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if supplier.avg_order_value %}
+                        ${{ supplier.avg_order_value|floatformat:2 }}
+                        <br><small class="text-muted">Range: ${{ supplier.min_order_value|floatformat:2 }} - ${{ supplier.max_order_value|floatformat:2 }}</small>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if supplier.last_order_date %}
+                        {{ supplier.last_order_date|date:"M d, Y" }}<br>
+                        <small class="text-muted">{{ supplier.last_order_date|timesince }} ago</small>
+                        {% if supplier.days_since_last_order > 90 %}
+                            <br><span class="badge bg-warning">Inactive</span>
+                        {% elif supplier.days_since_last_order > 30 %}
+                            <br><span class="badge bg-info">Slow</span>
+                        {% else %}
+                            <br><span class="badge bg-success">Recent</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="text-muted">No orders</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="progress me-2" style="width: 60px; height: 8px;">
+                            <div class="progress-bar {% if supplier.reliability_score >= 80 %}bg-success{% elif supplier.reliability_score >= 60 %}bg-info{% elif supplier.reliability_score >= 40 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                 role="progressbar" style="width: {{ supplier.reliability_score }}%"></div>
+                        </div>
+                        <small>{{ supplier.reliability_score|floatformat:0 }}%</small>
+                    </div>
+                    <small class="text-muted">
+                        On-time: {{ supplier.on_time_delivery_rate|floatformat:0 }}%
+                    </small>
+                </td>
+                <td>
+                    {% if supplier.performance_score >= 80 %}
+                        <span class="badge bg-success">Excellent</span>
+                    {% elif supplier.performance_score >= 60 %}
+                        <span class="badge bg-info">Good</span>
+                    {% elif supplier.performance_score >= 40 %}
+                        <span class="badge bg-warning">Fair</span>
+                    {% else %}
+                        <span class="badge bg-danger">Poor</span>
+                    {% endif %}
+                    <br><small class="text-muted">{{ supplier.performance_score|floatformat:0 }}%</small>
+                </td>
+                <td>
+                    {% if supplier.is_active %}
+                        {% if supplier.days_since_last_order <= 30 %}
+                            <span class="badge bg-success">Active</span>
+                        {% elif supplier.days_since_last_order <= 90 %}
+                            <span class="badge bg-warning">Slow</span>
+                        {% else %}
+                            <span class="badge bg-danger">Dormant</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                    {% endif %}
+                    {% if supplier.has_pending_orders %}
+                        <br><span class="badge bg-info">Pending Orders</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center py-4">
+                    <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">No suppliers found.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {% if report_data %}
+        <tfoot class="table-secondary">
+            <tr>
+                <th colspan="4">Totals:</th>
+                <th>${{ total_supplier_value|floatformat:2|default:"0.00" }}</th>
+                <th>${{ avg_order_value|floatformat:2|default:"0.00" }}</th>
+                <th colspan="4">{{ report_data|length }} supplier{{ report_data|length|pluralize }}</th>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+</div>
+
+{% if report_data %}
+<!-- Summary Statistics -->
+<div class="row mt-3">
+    <div class="col-md-2">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ report_data|length }}</h5>
+                <p class="card-text">Total Suppliers</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <h5 class="card-title text-success">{{ active_suppliers|default:0 }}</h5>
+                <p class="card-text">Active Suppliers</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <h5 class="card-title text-info">{{ preferred_suppliers|default:0 }}</h5>
+                <p class="card-text">Preferred Suppliers</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <h5 class="card-title text-warning">{{ total_orders|default:0 }}</h5>
+                <p class="card-text">Total Orders</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-secondary">
+            <div class="card-body">
+                <h5 class="card-title text-secondary">${{ total_supplier_value|floatformat:2|default:"0.00" }}</h5>
+                <p class="card-text">Total Value</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-dark">
+            <div class="card-body">
+                <h5 class="card-title text-dark">{{ avg_reliability_score|floatformat:0|default:0 }}%</h5>
+                <p class="card-text">Avg Reliability</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Performing Suppliers -->
+<div class="row mt-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="fas fa-star me-2"></i>Top Performing Suppliers</h6>
+            </div>
+            <div class="card-body">
+                {% if top_performing_suppliers %}
+                {% for supplier in top_performing_suppliers %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">{{ supplier.name }}</h6>
+                        <small class="text-muted">{{ supplier.total_orders }} orders • ${{ supplier.total_value|floatformat:2 }} value</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-success">{{ supplier.performance_score|floatformat:0 }}%</span>
+                        <div class="progress mt-1" style="width: 100px; height: 6px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ supplier.performance_score }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No performance data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Highest Value Suppliers</h6>
+            </div>
+            <div class="card-body">
+                {% if highest_value_suppliers %}
+                {% for supplier in highest_value_suppliers %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">{{ supplier.name }}</h6>
+                        <small class="text-muted">{{ supplier.total_orders }} orders • {{ supplier.value_percentage|floatformat:1 }}% of total</small>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-info">${{ supplier.total_value|floatformat:2 }}</strong>
+                        <div class="progress mt-1" style="width: 100px; height: 6px;">
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: {% widthratio supplier.total_value highest_value_suppliers.0.total_value 100 %}%"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No value data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Supplier Performance Metrics -->
+<div class="row mt-3">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0"><i class="fas fa-clock me-2"></i>Delivery Performance</h6>
+            </div>
+            <div class="card-body">
+                {% if delivery_performance_data %}
+                {% for supplier in delivery_performance_data %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>{{ supplier.name }}</span>
+                    <div class="text-end">
+                        <span class="badge bg-{% if supplier.on_time_delivery_rate >= 90 %}success{% elif supplier.on_time_delivery_rate >= 70 %}info{% elif supplier.on_time_delivery_rate >= 50 %}warning{% else %}danger{% endif %}">
+                            {{ supplier.on_time_delivery_rate|floatformat:0 }}%
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No delivery data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Reliability Issues</h6>
+            </div>
+            <div class="card-body">
+                {% if suppliers_with_issues %}
+                {% for supplier in suppliers_with_issues %}
+                <div class="mb-3">
+                    <h6 class="mb-1">{{ supplier.name }}</h6>
+                    <small class="text-muted">
+                        {% if supplier.late_deliveries > 0 %}
+                            {{ supplier.late_deliveries }} late deliveries<br>
+                        {% endif %}
+                        {% if supplier.quality_issues > 0 %}
+                            {{ supplier.quality_issues }} quality issues<br>
+                        {% endif %}
+                        {% if supplier.communication_issues > 0 %}
+                            {{ supplier.communication_issues }} communication issues
+                        {% endif %}
+                    </small>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No reliability issues reported.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>Recent Activity</h6>
+            </div>
+            <div class="card-body">
+                {% if recent_activity_suppliers %}
+                {% for supplier in recent_activity_suppliers %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <span>{{ supplier.name }}</span>
+                        <br><small class="text-muted">{{ supplier.last_order_date|timesince }} ago</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-{% if supplier.days_since_last_order <= 7 %}success{% elif supplier.days_since_last_order <= 30 %}info{% elif supplier.days_since_last_order <= 90 %}warning{% else %}danger{% endif %}">
+                            {{ supplier.days_since_last_order }}d
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No recent activity data.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Supplier Comparison Chart -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Supplier Comparison</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>By Order Volume:</h6>
+                {% for supplier in report_data|slice:":5" %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>{{ supplier.name }}</span>
+                    <div class="d-flex align-items-center">
+                        <div class="progress me-2" style="width: 100px; height: 8px;">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {% widthratio supplier.total_orders total_orders 100 %}%"></div>
+                        </div>
+                        <small class="text-muted">{{ supplier.total_orders }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="col-md-6">
+                <h6>By Reliability Score:</h6>
+                {% for supplier in most_reliable_suppliers|slice:":5" %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>{{ supplier.name }}</span>
+                    <div class="d-flex align-items-center">
+                        <div class="progress me-2" style="width: 100px; height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ supplier.reliability_score }}%"></div>
+                        </div>
+                        <small class="text-muted">{{ supplier.reliability_score|floatformat:0 }}%</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Supplier Recommendations -->
+<div class="alert alert-info mt-3">
+    <h6><i class="fas fa-lightbulb me-2"></i>Supplier Management Recommendations</h6>
+    <div class="row">
+        <div class="col-md-6">
+            <h6>Key Insights:</h6>
+            <ul class="mb-0">
+                {% if best_performing_supplier %}
+                <li>{{ best_performing_supplier.name }} is the top performer ({{ best_performing_supplier.performance_score|floatformat:0 }}% score)</li>
+                {% endif %}
+                {% if highest_value_supplier %}
+                <li>{{ highest_value_supplier.name }} provides highest value ({{ highest_value_supplier.value_percentage|floatformat:1 }}% of total)</li>
+                {% endif %}
+                {% if suppliers_needing_attention %}
+                <li>{{ suppliers_needing_attention }} supplier{{ suppliers_needing_attention|pluralize }} need{{ suppliers_needing_attention|pluralize:"s," }} attention</li>
+                {% endif %}
+                <li>Average supplier reliability: {{ avg_reliability_score|floatformat:1 }}%</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h6>Action Items:</h6>
+            <ul class="mb-0">
+                <li>Review contracts with underperforming suppliers</li>
+                <li>Negotiate better terms with high-value suppliers</li>
+                <li>Diversify supplier base to reduce dependency</li>
+                <li>Implement supplier scorecards for regular evaluation</li>
+                <li>Consider preferred supplier programs for top performers</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

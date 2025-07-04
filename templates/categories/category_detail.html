@@ -1,0 +1,630 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ category.name }} - Category Details{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'medicines:category_list' %}">Categories</a></li>
+        <li class="breadcrumb-item active" aria-current="page">{{ category.name }}</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+        <div class="d-flex align-items-center mb-2">
+            <h4 class="mb-0 me-3">{{ category.name }}</h4>
+            <span class="badge {% if category.is_active %}bg-success{% else %}bg-secondary{% endif %} fs-6">
+                {% if category.is_active %}Active{% else %}Inactive{% endif %}
+            </span>
+        </div>
+        {% if category.description %}
+            <p class="text-muted mb-0">{{ category.description }}</p>
+        {% else %}
+            <p class="text-muted mb-0">No description available</p>
+        {% endif %}
+    </div>
+    <div>
+        {% if user.is_staff %}
+            <button type="button" class="btn btn-outline-primary me-2" 
+                    onclick="editCategory({{ category.pk }}, '{{ category.name }}', '{{ category.description|default:'' }}')">
+                <i class="fas fa-edit me-2"></i>Edit Category
+            </button>
+        {% endif %}
+        <a href="{% url 'medicines:category_list' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-2"></i>Back to Categories
+        </a>
+    </div>
+</div>
+
+<!-- Category Statistics -->
+<div class="row mb-4">
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Total Medicines</h6>
+                        <h4 class="mb-0">{{ category.medicine_count|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-pills"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">In Stock</h6>
+                        <h4 class="mb-0">{{ category.in_stock_count|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-warning text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Low Stock</h6>
+                        <h4 class="mb-0">{{ category.low_stock_count|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-3 col-md-6 mb-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Out of Stock</h6>
+                        <h4 class="mb-0">{{ category.out_of_stock_count|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Information -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <!-- Medicines in Category -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Medicines in this Category</h5>
+                <div>
+                    {% if user.is_staff %}
+                        <a href="{% url 'medicines:medicine_add' %}?category={{ category.pk }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus me-1"></i>Add Medicine
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                {% if medicines %}
+                    <!-- Search and Filter -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <input type="text" class="form-control" id="medicineSearch" 
+                                   placeholder="Search medicines...">
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="stockFilter">
+                                <option value="">All Stock Status</option>
+                                <option value="in_stock">In Stock</option>
+                                <option value="low_stock">Low Stock</option>
+                                <option value="out_of_stock">Out of Stock</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="sortBy">
+                                <option value="name">Sort by Name</option>
+                                <option value="stock">Sort by Stock</option>
+                                <option value="price">Sort by Price</option>
+                                <option value="expiry">Sort by Expiry</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Medicines Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="medicinesTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Medicine</th>
+                                    <th>Generic Name</th>
+                                    <th>Stock</th>
+                                    <th>Unit Price</th>
+                                    <th>Expiry Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for medicine in medicines %}
+                                <tr class="medicine-row" data-name="{{ medicine.name|lower }}" 
+                                    data-stock-status="{% if medicine.stock <= 0 %}out_of_stock{% elif medicine.stock <= medicine.minimum_stock %}low_stock{% else %}in_stock{% endif %}">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div>
+                                                <div class="fw-medium">
+                                                    <a href="{% url 'medicines:medicine_detail' medicine.pk %}" 
+                                                       class="text-decoration-none">{{ medicine.name }}</a>
+                                                </div>
+                                                <small class="text-muted">{{ medicine.dosage_form }} - {{ medicine.strength }}</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if medicine.generic_name %}
+                                            <span class="text-muted">{{ medicine.generic_name }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <span class="me-2">{{ medicine.stock }}</span>
+                                            {% if medicine.stock <= 0 %}
+                                                <span class="badge bg-danger">Out</span>
+                                            {% elif medicine.stock <= medicine.minimum_stock %}
+                                                <span class="badge bg-warning">Low</span>
+                                            {% else %}
+                                                <span class="badge bg-success">OK</span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="fw-medium">${{ medicine.unit_price|floatformat:2 }}</span>
+                                    </td>
+                                    <td>
+                                        {% if medicine.expiry_date %}
+                                            <span class="{% if medicine.days_to_expiry <= 0 %}text-danger{% elif medicine.days_to_expiry <= 30 %}text-warning{% else %}text-muted{% endif %}">
+                                                {{ medicine.expiry_date|date:"M d, Y" }}
+                                            </span>
+                                            {% if medicine.days_to_expiry <= 0 %}
+                                                <br><small class="text-danger">Expired</small>
+                                            {% elif medicine.days_to_expiry <= 30 %}
+                                                <br><small class="text-warning">{{ medicine.days_to_expiry }} days left</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if medicine.days_to_expiry <= 0 %}
+                                            <span class="badge bg-danger">Expired</span>
+                                        {% elif medicine.days_to_expiry <= 30 %}
+                                            <span class="badge bg-warning">Expiring Soon</span>
+                                        {% elif medicine.stock <= 0 %}
+                                            <span class="badge bg-danger">Out of Stock</span>
+                                        {% elif medicine.stock <= medicine.minimum_stock %}
+                                            <span class="badge bg-warning">Low Stock</span>
+                                        {% else %}
+                                            <span class="badge bg-success">Good</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'medicines:medicine_detail' medicine.pk %}" 
+                                               class="btn btn-outline-primary" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if user.is_staff %}
+                                                <a href="{% url 'medicines:medicine_edit' medicine.pk %}" 
+                                                   class="btn btn-outline-secondary" title="Edit">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="{% url 'medicines:stock_adjustment' medicine.pk %}" 
+                                                   class="btn btn-outline-info" title="Adjust Stock">
+                                                    <i class="fas fa-boxes"></i>
+                                                </a>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination for medicines -->
+                    {% if medicines.has_other_pages %}
+                        <nav aria-label="Medicine pagination" class="mt-3">
+                            <ul class="pagination justify-content-center">
+                                {% if medicines.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ medicines.previous_page_number }}">
+                                            <i class="fas fa-angle-left"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                                
+                                {% for num in medicines.paginator.page_range %}
+                                    {% if medicines.number == num %}
+                                        <li class="page-item active">
+                                            <span class="page-link">{{ num }}</span>
+                                        </li>
+                                    {% elif num > medicines.number|add:'-3' and num < medicines.number|add:'3' %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                {% if medicines.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ medicines.next_page_number }}">
+                                            <i class="fas fa-angle-right"></i>
+                                        </a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-pills fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No Medicines in this Category</h6>
+                        <p class="text-muted mb-3">This category doesn't have any medicines yet.</p>
+                        {% if user.is_staff %}
+                            <a href="{% url 'medicines:medicine_add' %}?category={{ category.pk }}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Add First Medicine
+                            </a>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Category Details -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Category Details</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-5"><strong>Name:</strong></div>
+                    <div class="col-sm-7">{{ category.name }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-5"><strong>Status:</strong></div>
+                    <div class="col-sm-7">
+                        <span class="badge {% if category.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                            {% if category.is_active %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-5"><strong>Created:</strong></div>
+                    <div class="col-sm-7">{{ category.created_at|date:"M d, Y H:i" }}</div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-5"><strong>Last Updated:</strong></div>
+                    <div class="col-sm-7">{{ category.updated_at|date:"M d, Y H:i" }}</div>
+                </div>
+                
+                {% if category.description %}
+                    <div class="row">
+                        <div class="col-12">
+                            <strong>Description:</strong>
+                            <p class="text-muted mt-2">{{ category.description }}</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Financial Summary -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Financial Summary</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-sm-6"><strong>Total Value:</strong></div>
+                    <div class="col-sm-6 text-end">
+                        <span class="fw-bold text-primary">${{ category.total_value|default:0|floatformat:2 }}</span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-6"><strong>Avg Unit Price:</strong></div>
+                    <div class="col-sm-6 text-end">
+                        <span class="text-muted">${{ category.avg_unit_price|default:0|floatformat:2 }}</span>
+                    </div>
+                </div>
+                
+                <div class="row mb-3">
+                    <div class="col-sm-6"><strong>Low Stock Value:</strong></div>
+                    <div class="col-sm-6 text-end">
+                        <span class="text-warning">${{ category.low_stock_value|default:0|floatformat:2 }}</span>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-sm-6"><strong>Expired Value:</strong></div>
+                    <div class="col-sm-6 text-end">
+                        <span class="text-danger">${{ category.expired_value|default:0|floatformat:2 }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if user.is_staff %}
+                        <a href="{% url 'medicines:medicine_add' %}?category={{ category.pk }}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>Add Medicine
+                        </a>
+                        
+                        <button type="button" class="btn btn-outline-primary" 
+                                onclick="editCategory({{ category.pk }}, '{{ category.name }}', '{{ category.description|default:'' }}')">
+                            <i class="fas fa-edit me-2"></i>Edit Category
+                        </button>
+                    {% endif %}
+                    
+                    <a href="{% url 'dashboard:reports' %}?category={{ category.pk }}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-bar me-2"></i>View Reports
+                    </a>
+                    
+                    <a href="{% url 'medicines:transactions' %}?category={{ category.pk }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-history me-2"></i>View Transactions
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categoryModalTitle">Edit Category</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="categoryForm">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" id="categoryId" name="category_id">
+                    
+                    <div class="mb-3">
+                        <label for="categoryName" class="form-label">Category Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="categoryName" name="name" required>
+                        <div class="invalid-feedback"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="categoryDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="categoryDescription" name="description" rows="3" 
+                                  placeholder="Optional description for this category"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="categoryActive" name="is_active">
+                            <label class="form-check-label" for="categoryActive">
+                                Active Category
+                            </label>
+                            <div class="form-text">Inactive categories won't be available for new medicines</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="saveCategoryBtn">
+                        <i class="fas fa-save me-2"></i>Update Category
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Medicine search and filter functionality
+    const medicineSearch = document.getElementById('medicineSearch');
+    const stockFilter = document.getElementById('stockFilter');
+    const sortBy = document.getElementById('sortBy');
+    const medicinesTable = document.getElementById('medicinesTable');
+    
+    if (medicineSearch && medicinesTable) {
+        function filterMedicines() {
+            const searchTerm = medicineSearch.value.toLowerCase();
+            const stockStatus = stockFilter.value;
+            const rows = medicinesTable.querySelectorAll('tbody .medicine-row');
+            
+            rows.forEach(row => {
+                const name = row.dataset.name;
+                const status = row.dataset.stockStatus;
+                
+                const matchesSearch = name.includes(searchTerm);
+                const matchesStatus = !stockStatus || status === stockStatus;
+                
+                if (matchesSearch && matchesStatus) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        medicineSearch.addEventListener('input', filterMedicines);
+        stockFilter.addEventListener('change', filterMedicines);
+        
+        // Sort functionality
+        sortBy.addEventListener('change', function() {
+            const tbody = medicinesTable.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('.medicine-row'));
+            const sortValue = this.value;
+            
+            rows.sort((a, b) => {
+                let aVal, bVal;
+                
+                switch(sortValue) {
+                    case 'name':
+                        aVal = a.dataset.name;
+                        bVal = b.dataset.name;
+                        return aVal.localeCompare(bVal);
+                    case 'stock':
+                        aVal = parseInt(a.cells[2].textContent.trim());
+                        bVal = parseInt(b.cells[2].textContent.trim());
+                        return bVal - aVal; // Descending
+                    case 'price':
+                        aVal = parseFloat(a.cells[3].textContent.replace('$', ''));
+                        bVal = parseFloat(b.cells[3].textContent.replace('$', ''));
+                        return bVal - aVal; // Descending
+                    case 'expiry':
+                        aVal = new Date(a.cells[4].textContent.trim());
+                        bVal = new Date(b.cells[4].textContent.trim());
+                        return aVal - bVal; // Ascending (earliest first)
+                    default:
+                        return 0;
+                }
+            });
+            
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    }
+    
+    // Category form handling
+    const categoryModal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    const categoryForm = document.getElementById('categoryForm');
+    
+    categoryForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(categoryForm);
+        const categoryId = document.getElementById('categoryId').value;
+        
+        const url = `/categories/${categoryId}/update/`;
+        
+        // Add CSRF token
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                categoryModal.hide();
+                showAlert(data.message || 'Category updated successfully!', 'success');
+                setTimeout(() => {
+                    location.reload();
+                }, 1000);
+            } else {
+                // Show validation errors
+                Object.keys(data.errors || {}).forEach(field => {
+                    const input = document.getElementById(`category${field.charAt(0).toUpperCase() + field.slice(1)}`);
+                    if (input) {
+                        input.classList.add('is-invalid');
+                        const feedback = input.nextElementSibling;
+                        if (feedback && feedback.classList.contains('invalid-feedback')) {
+                            feedback.textContent = data.errors[field][0];
+                        }
+                    }
+                });
+                
+                if (data.message) {
+                    showAlert(data.message, 'danger');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('An error occurred while updating the category.', 'danger');
+        });
+    });
+    
+    // Reset form when modal is hidden
+    document.getElementById('categoryModal').addEventListener('hidden.bs.modal', function() {
+        categoryForm.reset();
+        
+        // Clear validation states
+        categoryForm.querySelectorAll('.is-invalid').forEach(input => {
+            input.classList.remove('is-invalid');
+        });
+    });
+    
+    // Auto-refresh every 60 seconds
+    setInterval(() => {
+        if (!document.hidden) {
+            location.reload();
+        }
+    }, 60000);
+});
+
+// Edit category function
+function editCategory(categoryId, name, description) {
+    document.getElementById('categoryId').value = categoryId;
+    document.getElementById('categoryName').value = name;
+    document.getElementById('categoryDescription').value = description;
+    
+    const categoryModal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    categoryModal.show();
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

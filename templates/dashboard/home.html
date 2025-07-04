@@ -1,0 +1,371 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Dashboard - Medicine Stock Management{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item active">Dashboard</li>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-tachometer-alt me-2"></i>Dashboard
+            <small class="text-muted">Welcome back, {{ user.get_full_name|default:user.username }}!</small>
+        </h1>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stat-card primary">
+            <div class="card-body">
+                <div class="stat-number text-primary">{{ total_medicines|intcomma }}</div>
+                <div class="stat-label">Total Medicines</div>
+                <i class="fas fa-pills fa-2x text-primary opacity-25 position-absolute" style="top: 15px; right: 15px;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stat-card warning">
+            <div class="card-body">
+                <div class="stat-number text-warning">{{ low_stock_count|intcomma }}</div>
+                <div class="stat-label">Low Stock Items</div>
+                <i class="fas fa-exclamation-triangle fa-2x text-warning opacity-25 position-absolute" style="top: 15px; right: 15px;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stat-card danger">
+            <div class="card-body">
+                <div class="stat-number text-danger">{{ expired_count|intcomma }}</div>
+                <div class="stat-label">Expired Medicines</div>
+                <i class="fas fa-calendar-times fa-2x text-danger opacity-25 position-absolute" style="top: 15px; right: 15px;"></i>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+        <div class="card stat-card success">
+            <div class="card-body">
+                <div class="stat-number text-success">${{ total_stock_value|floatformat:2|intcomma }}</div>
+                <div class="stat-label">Total Stock Value</div>
+                <i class="fas fa-dollar-sign fa-2x text-success opacity-25 position-absolute" style="top: 15px; right: 15px;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% if user.userprofile.can_edit_medicines %}
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'medicines:create' %}" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>Add Medicine
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'medicines:add_transaction' %}" class="btn btn-success w-100">
+                            <i class="fas fa-exchange-alt me-2"></i>Add Transaction
+                        </a>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'medicines:low_stock_alert' %}" class="btn btn-warning w-100">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Low Stock Alert
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'dashboard:reports' %}" class="btn btn-info w-100">
+                            <i class="fas fa-file-alt me-2"></i>Generate Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Transactions -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Transactions</h5>
+                <a href="{% url 'medicines:transactions' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_transactions %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Type</th>
+                                <th>Quantity</th>
+                                <th>Date</th>
+                                <th>User</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in recent_transactions %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'medicines:detail' transaction.medicine.pk %}" class="text-decoration-none">
+                                        {{ transaction.medicine.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if transaction.transaction_type == 'purchase' %}success{% elif transaction.transaction_type == 'sale' %}primary{% else %}secondary{% endif %}">
+                                        {{ transaction.get_transaction_type_display }}
+                                    </span>
+                                </td>
+                                <td>{{ transaction.quantity }}</td>
+                                <td>{{ transaction.created_at|date:"M d, Y H:i" }}</td>
+                                <td>{{ transaction.created_by.get_full_name|default:transaction.created_by.username }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No recent transactions found.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alerts -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bell me-2"></i>Alerts</h5>
+            </div>
+            <div class="card-body">
+                <!-- Low Stock Alert -->
+                {% if low_stock_count > 0 %}
+                <div class="alert alert-warning d-flex align-items-center mb-3">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <div>
+                        <strong>{{ low_stock_count }}</strong> medicine(s) running low on stock.
+                        <a href="{% url 'medicines:low_stock_alert' %}" class="alert-link">View Details</a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Out of Stock Alert -->
+                {% if out_of_stock_count > 0 %}
+                <div class="alert alert-danger d-flex align-items-center mb-3">
+                    <i class="fas fa-times-circle me-2"></i>
+                    <div>
+                        <strong>{{ out_of_stock_count }}</strong> medicine(s) out of stock.
+                        <a href="{% url 'medicines:list' %}?stock_status=out_of_stock" class="alert-link">View Details</a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Expiry Alerts -->
+                {% if expired_count > 0 %}
+                <div class="alert alert-danger d-flex align-items-center mb-3">
+                    <i class="fas fa-calendar-times me-2"></i>
+                    <div>
+                        <strong>{{ expired_count }}</strong> medicine(s) have expired.
+                        <a href="{% url 'medicines:expiry_alert' %}" class="alert-link">View Details</a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if expiring_soon_count > 0 %}
+                <div class="alert alert-warning d-flex align-items-center mb-3">
+                    <i class="fas fa-clock me-2"></i>
+                    <div>
+                        <strong>{{ expiring_soon_count }}</strong> medicine(s) expiring within 30 days.
+                        <a href="{% url 'medicines:expiry_alert' %}" class="alert-link">View Details</a>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if low_stock_count == 0 and out_of_stock_count == 0 and expired_count == 0 and expiring_soon_count == 0 %}
+                <div class="text-center py-3">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <p class="text-muted mb-0">All systems running smoothly!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row">
+    <!-- Monthly Transactions Chart -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Monthly Transaction Trends</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyTransactionsChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Top Categories -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-tags me-2"></i>Top Categories</h5>
+            </div>
+            <div class="card-body">
+                {% if top_categories %}
+                {% for category in top_categories %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">{{ category.name }}</h6>
+                        <small class="text-muted">{{ category.medicine_count }} medicine(s)</small>
+                    </div>
+                    <div class="progress" style="width: 100px; height: 8px;">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: {% widthratio category.medicine_count top_categories.0.medicine_count 100 %}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">No categories found.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Low Stock Medicines -->
+{% if low_stock_medicines %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Low Stock Medicines</h5>
+                <a href="{% url 'medicines:low_stock_alert' %}" class="btn btn-sm btn-outline-warning">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Medicine</th>
+                                <th>Category</th>
+                                <th>Current Stock</th>
+                                <th>Minimum Stock</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for medicine in low_stock_medicines %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'medicines:detail' medicine.pk %}" class="text-decoration-none">
+                                        <strong>{{ medicine.name }}</strong><br>
+                                        <small class="text-muted">{{ medicine.strength }}</small>
+                                    </a>
+                                </td>
+                                <td>{{ medicine.category.name }}</td>
+                                <td>
+                                    <span class="badge bg-{% if medicine.current_stock == 0 %}danger{% else %}warning{% endif %}">
+                                        {{ medicine.current_stock }}
+                                    </span>
+                                </td>
+                                <td>{{ medicine.minimum_stock }}</td>
+                                <td>
+                                    {% if medicine.current_stock == 0 %}
+                                        <span class="badge bg-danger">Out of Stock</span>
+                                    {% else %}
+                                        <span class="badge bg-warning">Low Stock</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if user.userprofile.can_edit_medicines %}
+                                    <a href="{% url 'medicines:add_transaction' %}?medicine={{ medicine.pk }}" 
+                                       class="btn btn-sm btn-primary">
+                                        <i class="fas fa-plus"></i> Add Stock
+                                    </a>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Monthly Transactions Chart
+const ctx = document.getElementById('monthlyTransactionsChart').getContext('2d');
+const monthlyData = {{ monthly_transactions|safe }};
+
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: monthlyData.map(item => item.month),
+        datasets: [{
+            label: 'Purchases',
+            data: monthlyData.map(item => item.purchases),
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1
+        }, {
+            label: 'Sales',
+            data: monthlyData.map(item => item.sales),
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            tension: 0.1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        },
+        plugins: {
+            legend: {
+                position: 'top',
+            },
+            title: {
+                display: false
+            }
+        }
+    }
+});
+
+// Auto-refresh data every 5 minutes
+setInterval(function() {
+    location.reload();
+}, 300000);
+</script>
+{% endblock %}

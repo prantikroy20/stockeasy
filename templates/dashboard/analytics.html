@@ -1,0 +1,551 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Analytics - Medicine Stock Management{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Analytics</li>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-chart-bar me-2"></i>Analytics
+            <small class="text-muted">Detailed insights and trends</small>
+        </h1>
+    </div>
+</div>
+
+<!-- Filter Controls -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="date_from" class="form-label">From Date</label>
+                        <input type="date" class="form-control" id="date_from" name="date_from" 
+                               value="{{ request.GET.date_from }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="date_to" class="form-label">To Date</label>
+                        <input type="date" class="form-control" id="date_to" name="date_to" 
+                               value="{{ request.GET.date_to }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="">All Categories</option>
+                            {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>
+                                {{ cat.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-filter me-1"></i>Apply Filters
+                        </button>
+                        <a href="{% url 'dashboard:analytics' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i>Clear
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics -->
+<div class="row mb-4">
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-primary h4 mb-1">{{ total_medicines|intcomma }}</div>
+                <div class="text-muted small">Total Medicines</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-success h4 mb-1">{{ total_categories|intcomma }}</div>
+                <div class="text-muted small">Categories</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-info h4 mb-1">{{ total_suppliers|intcomma }}</div>
+                <div class="text-muted small">Suppliers</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-warning h4 mb-1">{{ total_transactions|intcomma }}</div>
+                <div class="text-muted small">Transactions</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-danger h4 mb-1">{{ low_stock_percentage|floatformat:1 }}%</div>
+                <div class="text-muted small">Low Stock</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-sm-6 mb-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="text-secondary h4 mb-1">${{ avg_medicine_value|floatformat:2 }}</div>
+                <div class="text-muted small">Avg Value</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 1 -->
+<div class="row mb-4">
+    <!-- Stock Distribution by Category -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Stock Distribution by Category</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="categoryDistributionChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stock Status Distribution -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-doughnut me-2"></i>Stock Status Distribution</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="stockStatusChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="row mb-4">
+    <!-- Daily Transaction Trends -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Daily Transaction Trends (Last 30 Days)</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="dailyTrendsChart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Expiry Status -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Expiry Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="expiryStatusChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Tables Row -->
+<div class="row mb-4">
+    <!-- Top Suppliers -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-truck me-2"></i>Top Suppliers by Medicine Count</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if top_suppliers %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Supplier</th>
+                                <th>Medicines</th>
+                                <th>Contact</th>
+                                <th>Performance</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for supplier in top_suppliers %}
+                            <tr>
+                                <td>
+                                    <strong>{{ supplier.name }}</strong><br>
+                                    <small class="text-muted">{{ supplier.address|truncatechars:30 }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-primary">{{ supplier.medicine_count }}</span>
+                                </td>
+                                <td>
+                                    <small>{{ supplier.phone }}<br>{{ supplier.email }}</small>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-success" role="progressbar" 
+                                             style="width: {% widthratio supplier.medicine_count top_suppliers.0.medicine_count 100 %}%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No suppliers found.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Most Active Users -->
+    <div class="col-lg-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-users me-2"></i>Most Active Users</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if most_active_users %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Role</th>
+                                <th>Transactions</th>
+                                <th>Activity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user_data in most_active_users %}
+                            <tr>
+                                <td>
+                                    <strong>{{ user_data.user.get_full_name|default:user_data.user.username }}</strong><br>
+                                    <small class="text-muted">{{ user_data.user.email }}</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if user_data.user.userprofile.role == 'admin' %}danger{% elif user_data.user.userprofile.role == 'pharmacist' %}warning{% else %}secondary{% endif %}">
+                                        {{ user_data.user.userprofile.get_role_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ user_data.transaction_count }}</span>
+                                </td>
+                                <td>
+                                    <div class="progress" style="height: 8px;">
+                                        <div class="progress-bar bg-info" role="progressbar" 
+                                             style="width: {% widthratio user_data.transaction_count most_active_users.0.transaction_count 100 %}%"></div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">No user activity found.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Value Analysis -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Stock Value Analysis</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="stockValueChart" height="100"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Export Options -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-download me-2"></i>Export Analytics</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-primary w-100" onclick="exportChart('categoryDistributionChart', 'category-distribution')">
+                            <i class="fas fa-file-image me-2"></i>Category Chart
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <button class="btn btn-outline-success w-100" onclick="exportChart('dailyTrendsChart', 'daily-trends')">
+                            <i class="fas fa-file-image me-2"></i>Trends Chart
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'dashboard:reports' %}?format=csv" class="btn btn-outline-info w-100">
+                            <i class="fas fa-file-csv me-2"></i>CSV Report
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="{% url 'dashboard:reports' %}?format=pdf" class="btn btn-outline-danger w-100">
+                            <i class="fas fa-file-pdf me-2"></i>PDF Report
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Chart.js configurations
+Chart.defaults.font.family = 'Inter, sans-serif';
+Chart.defaults.color = '#6c757d';
+
+// Category Distribution Pie Chart
+const categoryCtx = document.getElementById('categoryDistributionChart').getContext('2d');
+const categoryData = {{ category_distribution|safe }};
+
+const categoryChart = new Chart(categoryCtx, {
+    type: 'pie',
+    data: {
+        labels: categoryData.map(item => item.name),
+        datasets: [{
+            data: categoryData.map(item => item.count),
+            backgroundColor: [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+            ],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((context.parsed / total) * 100).toFixed(1);
+                        return context.label + ': ' + context.parsed + ' (' + percentage + '%)';
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Stock Status Doughnut Chart
+const stockStatusCtx = document.getElementById('stockStatusChart').getContext('2d');
+const stockStatusData = {{ stock_status_distribution|safe }};
+
+const stockStatusChart = new Chart(stockStatusCtx, {
+    type: 'doughnut',
+    data: {
+        labels: stockStatusData.map(item => item.status),
+        datasets: [{
+            data: stockStatusData.map(item => item.count),
+            backgroundColor: ['#28a745', '#ffc107', '#dc3545', '#6c757d'],
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            }
+        }
+    }
+});
+
+// Daily Trends Line Chart
+const dailyTrendsCtx = document.getElementById('dailyTrendsChart').getContext('2d');
+const dailyTrendsData = {{ daily_trends|safe }};
+
+const dailyTrendsChart = new Chart(dailyTrendsCtx, {
+    type: 'line',
+    data: {
+        labels: dailyTrendsData.map(item => item.date),
+        datasets: [{
+            label: 'Purchases',
+            data: dailyTrendsData.map(item => item.purchases),
+            borderColor: '#28a745',
+            backgroundColor: 'rgba(40, 167, 69, 0.1)',
+            tension: 0.4,
+            fill: true
+        }, {
+            label: 'Sales',
+            data: dailyTrendsData.map(item => item.sales),
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    display: false
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                position: 'top'
+            }
+        }
+    }
+});
+
+// Expiry Status Chart
+const expiryStatusCtx = document.getElementById('expiryStatusChart').getContext('2d');
+const expiryStatusData = {{ expiry_status_distribution|safe }};
+
+const expiryStatusChart = new Chart(expiryStatusCtx, {
+    type: 'bar',
+    data: {
+        labels: expiryStatusData.map(item => item.status),
+        datasets: [{
+            data: expiryStatusData.map(item => item.count),
+            backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            },
+            x: {
+                grid: {
+                    display: false
+                }
+            }
+        }
+    }
+});
+
+// Stock Value Chart
+const stockValueCtx = document.getElementById('stockValueChart').getContext('2d');
+const stockValueData = {{ stock_value_by_category|safe }};
+
+const stockValueChart = new Chart(stockValueCtx, {
+    type: 'bar',
+    data: {
+        labels: stockValueData.map(item => item.category),
+        datasets: [{
+            label: 'Stock Value ($)',
+            data: stockValueData.map(item => item.value),
+            backgroundColor: 'rgba(54, 162, 235, 0.8)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '$' + value.toLocaleString();
+                    }
+                }
+            }
+        },
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return 'Value: $' + context.parsed.y.toLocaleString();
+                    }
+                }
+            }
+        }
+    }
+});
+
+// Export chart function
+function exportChart(chartId, filename) {
+    const canvas = document.getElementById(chartId);
+    const url = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = filename + '.png';
+    link.href = url;
+    link.click();
+}
+
+// Auto-refresh data every 10 minutes
+setInterval(function() {
+    location.reload();
+}, 600000);
+</script>
+{% endblock %}

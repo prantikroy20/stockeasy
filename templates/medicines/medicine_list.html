@@ -1,0 +1,395 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Medicines - Pharmacy Management{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Medicines</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-pills me-2"></i>Medicine Inventory</h2>
+    <div>
+        {% if user.role == 'admin' or user.role == 'manager' %}
+        <a href="{% url 'medicines:medicine_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>Add Medicine
+        </a>
+        {% endif %}
+        <!-- Advanced search button removed as the URL doesn't exist -->
+        <!-- If you want to implement advanced search, add the corresponding URL pattern and view function -->
+        <!-- <a href="#" class="btn btn-outline-secondary">
+            <i class="fas fa-search me-2"></i>Advanced Search
+        </a> -->
+    </div>
+</div>
+
+<!-- Search and Filter Section -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ request.GET.search }}" placeholder="Medicine name, generic name...">
+            </div>
+            <div class="col-md-2">
+                <label for="category" class="form-label">Category</label>
+                <select class="form-select" id="category" name="category">
+                    <option value="">All Categories</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"s" %}selected{% endif %}>
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="supplier" class="form-label">Supplier</label>
+                <select class="form-select" id="supplier" name="supplier">
+                    <option value="">All Suppliers</option>
+                    {% for supplier in suppliers %}
+                    <option value="{{ supplier.id }}" {% if request.GET.supplier == supplier.id|stringformat:"s" %}selected{% endif %}>
+                        {{ supplier.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="stock_status" class="form-label">Stock Status</label>
+                <select class="form-select" id="stock_status" name="stock_status">
+                    <option value="">All Stock</option>
+                    <option value="in_stock" {% if request.GET.stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                    <option value="low_stock" {% if request.GET.stock_status == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                    <option value="out_of_stock" {% if request.GET.stock_status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="expiry_status" class="form-label">Expiry Status</label>
+                <select class="form-select" id="expiry_status" name="expiry_status">
+                    <option value="">All Items</option>
+                    <option value="expired" {% if request.GET.expiry_status == 'expired' %}selected{% endif %}>Expired</option>
+                    <option value="expiring_soon" {% if request.GET.expiry_status == 'expiring_soon' %}selected{% endif %}>Expiring Soon</option>
+                    <option value="fresh" {% if request.GET.expiry_status == 'fresh' %}selected{% endif %}>Fresh</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-primary">
+            <div class="card-body text-center">
+                <h4 class="text-primary">{{ total_medicines }}</h4>
+                <p class="mb-0">Total Medicines</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <h4 class="text-success">{{ in_stock_count }}</h4>
+                <p class="mb-0">In Stock</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <h4 class="text-warning">{{ low_stock_count }}</h4>
+                <p class="mb-0">Low Stock</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <h4 class="text-danger">{{ out_of_stock_count }}</h4>
+                <p class="mb-0">Out of Stock</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Medicine List -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="mb-0">Medicine List ({{ medicines.paginator.count }} items)</h6>
+        <div class="btn-group" role="group">
+            <input type="radio" class="btn-check" name="view" id="table-view" autocomplete="off" checked>
+            <label class="btn btn-outline-secondary btn-sm" for="table-view">
+                <i class="fas fa-table"></i>
+            </label>
+            <input type="radio" class="btn-check" name="view" id="card-view" autocomplete="off">
+            <label class="btn btn-outline-secondary btn-sm" for="card-view">
+                <i class="fas fa-th-large"></i>
+            </label>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <!-- Table View -->
+        <div id="table-view-content" class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Medicine</th>
+                        <th>Category</th>
+                        <th>Stock</th>
+                        <th>Unit Price</th>
+                        <th>Expiry Date</th>
+                        <th>Supplier</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for medicine in medicines %}
+                    <tr class="{% if medicine.is_expired %}table-danger{% elif medicine.is_expiring_soon %}table-warning{% elif medicine.is_low_stock %}table-info{% endif %}">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="medicine-avatar me-3">
+                                    <i class="fas fa-pills fa-2x text-primary"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">{{ medicine.name }}</h6>
+                                    <small class="text-muted">{{ medicine.generic_name }}</small><br>
+                                    <small class="text-muted">{{ medicine.dosage_form }} - {{ medicine.strength }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ medicine.category.name }}</span>
+                        </td>
+                        <td>
+                            <div>
+                                <strong class="{% if medicine.is_out_of_stock %}text-danger{% elif medicine.is_low_stock %}text-warning{% else %}text-success{% endif %}">
+                                    {{ medicine.stock_quantity }}
+                                </strong>
+                                <small class="text-muted d-block">Min: {{ medicine.minimum_stock_level }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <strong>${{ medicine.unit_price }}</strong>
+                        </td>
+                        <td>
+                            {% if medicine.expiry_date %}
+                                <div class="{% if medicine.is_expired %}text-danger{% elif medicine.is_expiring_soon %}text-warning{% endif %}">
+                                    {{ medicine.expiry_date|date:"M d, Y" }}
+                                    <small class="d-block">
+                                        {% if medicine.is_expired %}
+                                            Expired {{ medicine.expiry_date|timesince }} ago
+                                        {% else %}
+                                            {{ medicine.expiry_date|timeuntil }} left
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            {% else %}
+                                <span class="text-muted">No expiry</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ medicine.supplier.name }}</small>
+                        </td>
+                        <td>
+                            {% if medicine.is_expired %}
+                                <span class="badge bg-danger">Expired</span>
+                            {% elif medicine.is_expiring_soon %}
+                                <span class="badge bg-warning">Expiring Soon</span>
+                            {% elif medicine.is_out_of_stock %}
+                                <span class="badge bg-danger">Out of Stock</span>
+                            {% elif medicine.is_low_stock %}
+                                <span class="badge bg-warning">Low Stock</span>
+                            {% else %}
+                                <span class="badge bg-success">In Stock</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="{% url 'medicines:medicine_detail' medicine.pk %}" 
+                                   class="btn btn-sm btn-outline-info" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if user.role == 'admin' or user.role == 'manager' %}
+                                <a href="{% url 'medicines:medicine_update' medicine.pk %}" 
+                                   class="btn btn-sm btn-outline-primary" title="Edit">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'medicines:stock_add' %}?medicine={{ medicine.pk }}" 
+                                   class="btn btn-sm btn-outline-success" title="Add Stock">
+                                    <i class="fas fa-plus"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4">
+                            <i class="fas fa-pills fa-3x text-muted mb-3"></i>
+                            <p class="text-muted mb-0">No medicines found.</p>
+                            {% if user.role == 'admin' or user.role == 'manager' %}
+                            <a href="{% url 'medicines:medicine_create' %}" class="btn btn-primary mt-2">
+                                <i class="fas fa-plus me-2"></i>Add First Medicine
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Card View -->
+        <div id="card-view-content" class="d-none p-3">
+            <div class="row">
+                {% for medicine in medicines %}
+                <div class="col-md-6 col-lg-4 mb-3">
+                    <div class="card h-100 {% if medicine.is_expired %}border-danger{% elif medicine.is_expiring_soon %}border-warning{% elif medicine.is_low_stock %}border-info{% endif %}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <h6 class="card-title mb-0">{{ medicine.name }}</h6>
+                                {% if medicine.is_expired %}
+                                    <span class="badge bg-danger">Expired</span>
+                                {% elif medicine.is_expiring_soon %}
+                                    <span class="badge bg-warning">Expiring Soon</span>
+                                {% elif medicine.is_out_of_stock %}
+                                    <span class="badge bg-danger">Out of Stock</span>
+                                {% elif medicine.is_low_stock %}
+                                    <span class="badge bg-warning">Low Stock</span>
+                                {% else %}
+                                    <span class="badge bg-success">In Stock</span>
+                                {% endif %}
+                            </div>
+                            <p class="card-text">
+                                <small class="text-muted">{{ medicine.generic_name }}</small><br>
+                                <small class="text-muted">{{ medicine.dosage_form }} - {{ medicine.strength }}</small>
+                            </p>
+                            <div class="row text-center mb-3">
+                                <div class="col-4">
+                                    <div class="border-end">
+                                        <strong class="d-block">{{ medicine.stock_quantity }}</strong>
+                                        <small class="text-muted">Stock</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <div class="border-end">
+                                        <strong class="d-block">${{ medicine.unit_price }}</strong>
+                                        <small class="text-muted">Price</small>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <strong class="d-block">{{ medicine.category.name }}</strong>
+                                    <small class="text-muted">Category</small>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">{{ medicine.supplier.name }}</small>
+                                <div class="btn-group" role="group">
+                                    <a href="{% url 'medicines:medicine_detail' medicine.pk %}" 
+                                       class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if user.role == 'admin' or user.role == 'manager' %}
+                                    <a href="{% url 'medicines:medicine_update' medicine.pk %}" 
+                                       class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-12 text-center py-4">
+                    <i class="fas fa-pills fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">No medicines found.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if medicines.has_other_pages %}
+<nav aria-label="Medicine pagination" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if medicines.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ medicines.previous_page_number }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+        {% endif %}
+        
+        {% for num in medicines.paginator.page_range %}
+            {% if medicines.number == num %}
+                <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                </li>
+            {% elif num > medicines.number|add:'-3' and num < medicines.number|add:'3' %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+                </li>
+            {% endif %}
+        {% endfor %}
+        
+        {% if medicines.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ medicines.next_page_number }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// View toggle functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const tableViewBtn = document.getElementById('table-view');
+    const cardViewBtn = document.getElementById('card-view');
+    const tableViewContent = document.getElementById('table-view-content');
+    const cardViewContent = document.getElementById('card-view-content');
+    
+    tableViewBtn.addEventListener('change', function() {
+        if (this.checked) {
+            tableViewContent.classList.remove('d-none');
+            cardViewContent.classList.add('d-none');
+        }
+    });
+    
+    cardViewBtn.addEventListener('change', function() {
+        if (this.checked) {
+            cardViewContent.classList.remove('d-none');
+            tableViewContent.classList.add('d-none');
+        }
+    });
+    
+    // Auto-refresh every 5 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+});
+</script>
+{% endblock %}

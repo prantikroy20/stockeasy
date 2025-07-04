@@ -1,0 +1,173 @@
+<div class="alert alert-warning d-flex align-items-center mb-3">
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Low Stock Report - Medicine Stock Management{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+<li class="breadcrumb-item"><a href="{% url 'dashboard:reports' %}">Reports</a></li>
+<li class="breadcrumb-item active">Low Stock Report</li>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span>Low Stock Report</span>
+            <small class="text-muted">The following medicines are running low on stock and need immediate attention.</small>
+        </h1>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-warning">
+            <tr>
+                <th>Medicine Name</th>
+                <th>Category</th>
+                <th>Current Stock</th>
+                <th>Minimum Stock</th>
+                <th>Shortage</th>
+                <th>Unit Price</th>
+                <th>Reorder Value</th>
+                <th>Supplier</th>
+                <th>Last Restocked</th>
+                <th>Priority</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for medicine in report_data %}
+            <tr class="{% if medicine.current_stock == 0 %}table-danger{% else %}table-warning{% endif %}">
+                <td>
+                    <strong>{{ medicine.name }}</strong>
+                    {% if medicine.generic_name %}
+                        <br><small class="text-muted">{{ medicine.generic_name }}</small>
+                    {% endif %}
+                </td>
+                <td>{{ medicine.category.name }}</td>
+                <td>
+                    <span class="badge bg-{% if medicine.current_stock == 0 %}danger{% else %}warning{% endif %}">
+                        {{ medicine.current_stock }}
+                    </span>
+                </td>
+                <td>{{ medicine.minimum_stock }}</td>
+                <td>
+                    <span class="badge bg-danger">
+                        {{ medicine.shortage_quantity }}
+                    </span>
+                </td>
+                <td>${{ medicine.unit_price|floatformat:2 }}</td>
+                <td>
+                    <strong>${{ medicine.reorder_value|floatformat:2 }}</strong>
+                </td>
+                <td>
+                    {{ medicine.supplier.name }}<br>
+                    <small class="text-muted">{{ medicine.supplier.phone }}</small>
+                </td>
+                <td>
+                    {% if medicine.last_restocked %}
+                        {{ medicine.last_restocked|date:"M d, Y" }}
+                        <br><small class="text-muted">{{ medicine.days_since_restock }} days ago</small>
+                    {% else %}
+                        <span class="text-muted">Never</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if medicine.current_stock == 0 %}
+                        <span class="badge bg-danger">Critical</span>
+                    {% elif medicine.shortage_percentage >= 80 %}
+                        <span class="badge bg-warning">High</span>
+                    {% else %}
+                        <span class="badge bg-info">Medium</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center py-4">
+                    <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                    <p class="text-success mb-0">Great! No medicines are currently running low on stock.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {% if report_data %}
+        <tfoot class="table-secondary">
+            <tr>
+                <th colspan="6">Total Reorder Value:</th>
+                <th>${{ total_reorder_value|floatformat:2|default:"0.00" }}</th>
+                <th colspan="3">{{ report_data|length }} item(s) need restocking</th>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+</div>
+
+{% if report_data %}
+<div class="row mt-3">
+    <div class="col-md-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <h5 class="card-title text-warning">{{ report_data|length }}</h5>
+                <p class="card-text">Low Stock Items</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-danger">
+            <div class="card-body">
+                <h5 class="card-title text-danger">{{ critical_count|default:0 }}</h5>
+                <p class="card-text">Out of Stock</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <h5 class="card-title text-info">${{ total_reorder_value|floatformat:2|default:"0.00" }}</h5>
+                <p class="card-text">Reorder Value</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-secondary">
+            <div class="card-body">
+                <h5 class="card-title text-secondary">{{ avg_shortage_days|default:0 }}</h5>
+                <p class="card-text">Avg Days Since Restock</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recommended Actions -->
+<div class="card mt-3">
+    <div class="card-header bg-warning text-dark">
+        <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>Recommended Actions</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Immediate Actions:</h6>
+                <ul class="list-unstyled">
+                    {% if critical_count > 0 %}
+                    <li><i class="fas fa-exclamation-triangle text-danger me-2"></i>Contact suppliers for {{ critical_count }} out-of-stock items</li>
+                    {% endif %}
+                    <li><i class="fas fa-phone text-primary me-2"></i>Place urgent orders for critical items</li>
+                    <li><i class="fas fa-envelope text-info me-2"></i>Send reorder notifications to suppliers</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Long-term Actions:</h6>
+                <ul class="list-unstyled">
+                    <li><i class="fas fa-chart-line text-success me-2"></i>Review minimum stock levels</li>
+                    <li><i class="fas fa-clock text-warning me-2"></i>Set up automated reorder alerts</li>
+                    <li><i class="fas fa-handshake text-secondary me-2"></i>Negotiate better terms with suppliers</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

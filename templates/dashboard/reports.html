@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Reports - Medicine Stock Management{% endblock %}
+
+{% block breadcrumb_items %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Reports</li>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <h1 class="h3 mb-0">
+            <i class="fas fa-file-alt me-2"></i>Reports
+            <small class="text-muted">Generate and download reports</small>
+        </h1>
+    </div>
+</div>
+
+<!-- Report Generation Form -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Report Configuration</h5>
+            </div>
+            <div class="card-body">
+                <form method="get" id="reportForm">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="report_type" class="form-label">Report Type</label>
+                            <select class="form-select" id="report_type" name="report_type" required>
+                                <option value="">Select Report Type</option>
+                                <option value="stock" {% if request.GET.report_type == 'stock' %}selected{% endif %}>Stock Report</option>
+                                <option value="low_stock" {% if request.GET.report_type == 'low_stock' %}selected{% endif %}>Low Stock Report</option>
+                                <option value="expiry" {% if request.GET.report_type == 'expiry' %}selected{% endif %}>Expiry Report</option>
+                                <option value="transactions" {% if request.GET.report_type == 'transactions' %}selected{% endif %}>Transaction Report</option>
+                                <option value="category" {% if request.GET.report_type == 'category' %}selected{% endif %}>Category Report</option>
+                                <option value="supplier" {% if request.GET.report_type == 'supplier' %}selected{% endif %}>Supplier Report</option>
+                                <option value="financial" {% if request.GET.report_type == 'financial' %}selected{% endif %}>Financial Report</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="format" class="form-label">Format</label>
+                            <select class="form-select" id="format" name="format">
+                                <option value="html" {% if request.GET.format == 'html' %}selected{% endif %}>HTML</option>
+                                <option value="pdf" {% if request.GET.format == 'pdf' %}selected{% endif %}>PDF</option>
+                                <option value="csv" {% if request.GET.format == 'csv' %}selected{% endif %}>CSV</option>
+                                <option value="excel" {% if request.GET.format == 'excel' %}selected{% endif %}>Excel</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="date_from" class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="date_from" name="date_from" 
+                                   value="{{ request.GET.date_from }}">
+                        </div>
+                        
+                        <div class="col-md-2">
+                            <label for="date_to" class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="date_to" name="date_to" 
+                                   value="{{ request.GET.date_to }}">
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="category" class="form-label">Category (Optional)</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">All Categories</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat.id }}" {% if request.GET.category == cat.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ cat.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row g-3 mt-2">
+                        <div class="col-md-3">
+                            <label for="supplier" class="form-label">Supplier (Optional)</label>
+                            <select class="form-select" id="supplier" name="supplier">
+                                <option value="">All Suppliers</option>
+                                {% for sup in suppliers %}
+                                <option value="{{ sup.id }}" {% if request.GET.supplier == sup.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ sup.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <label for="status" class="form-label">Status (Optional)</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="">All Status</option>
+                                <option value="in_stock" {% if request.GET.status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                                <option value="low_stock" {% if request.GET.status == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                                <option value="out_of_stock" {% if request.GET.status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                                <option value="expired" {% if request.GET.status == 'expired' %}selected{% endif %}>Expired</option>
+                                <option value="expiring_soon" {% if request.GET.status == 'expiring_soon' %}selected{% endif %}>Expiring Soon</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="include_inactive" name="include_inactive" 
+                                       {% if request.GET.include_inactive %}checked{% endif %}>
+                                <label class="form-check-label" for="include_inactive">
+                                    Include Inactive Items
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-file-alt me-1"></i>Generate Report
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" onclick="clearForm()">
+                                <i class="fas fa-times me-1"></i>Clear
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Report Buttons -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-bolt me-2"></i>Quick Reports</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-2">
+                        <a href="?report_type=stock&format=pdf" class="btn btn-outline-primary w-100">
+                            <i class="fas fa-boxes me-2"></i>Current Stock (PDF)
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="?report_type=low_stock&format=excel" class="btn btn-outline-warning w-100">
+                            <i class="fas fa-exclamation-triangle me-2"></i>Low Stock (Excel)
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="?report_type=expiry&format=pdf" class="btn btn-outline-danger w-100">
+                            <i class="fas fa-calendar-times me-2"></i>Expiry Report (PDF)
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-2">
+                        <a href="?report_type=transactions&format=csv&date_from={{ last_month }}&date_to={{ today }}" class="btn btn-outline-success w-100">
+                            <i class="fas fa-exchange-alt me-2"></i>Monthly Transactions (CSV)
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Report Preview/Results -->
+{% if report_data %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-eye me-2"></i>Report Preview: {{ report_title }}
+                </h5>
+                <div>
+                    <span class="badge bg-info me-2">{{ report_data|length }} records</span>
+                    {% if request.GET.format == 'html' %}
+                    <div class="btn-group">
+                        <a href="{{ request.get_full_path }}&format=pdf" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-file-pdf me-1"></i>PDF
+                        </a>
+                        <a href="{{ request.get_full_path }}&format=csv" class="btn btn-sm btn-outline-success">
+                            <i class="fas fa-file-csv me-1"></i>CSV
+                        </a>
+                        <a href="{{ request.get_full_path }}&format=excel" class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-file-excel me-1"></i>Excel
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if request.GET.report_type == 'stock' %}
+                    {% include 'dashboard/reports/stock_report.html' %}
+                {% elif request.GET.report_type == 'low_stock' %}
+                    {% include 'dashboard/reports/low_stock_report.html' %}
+                {% elif request.GET.report_type == 'expiry' %}
+                    {% include 'dashboard/reports/expiry_report.html' %}
+                {% elif request.GET.report_type == 'transactions' %}
+                    {% include 'dashboard/reports/transaction_report.html' %}
+                {% elif request.GET.report_type == 'category' %}
+                    {% include 'dashboard/reports/category_report.html' %}
+                {% elif request.GET.report_type == 'supplier' %}
+                    {% include 'dashboard/reports/supplier_report.html' %}
+                {% elif request.GET.report_type == 'financial' %}
+                    {% include 'dashboard/reports/financial_report.html' %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Report History -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Recent Reports</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Report Type</th>
+                                <th>Generated By</th>
+                                <th>Date Range</th>
+                                <th>Format</th>
+                                <th>Generated At</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- This would be populated with actual report history from the database -->
+                            <tr>
+                                <td><span class="badge bg-primary">Stock Report</span></td>
+                                <td>{{ user.get_full_name|default:user.username }}</td>
+                                <td>{{ today|date:"M d, Y" }}</td>
+                                <td><span class="badge bg-secondary">PDF</span></td>
+                                <td>{{ now|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary" disabled>
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-3">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Report history feature will be available in future updates
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Form handling
+function clearForm() {
+    document.getElementById('reportForm').reset();
+    window.location.href = '{% url "dashboard:reports" %}';
+}
+
+// Auto-set date range based on report type
+document.getElementById('report_type').addEventListener('change', function() {
+    const reportType = this.value;
+    const dateFrom = document.getElementById('date_from');
+    const dateTo = document.getElementById('date_to');
+    const today = new Date();
+    
+    // Set default date ranges
+    switch(reportType) {
+        case 'transactions':
+        case 'financial':
+            // Last 30 days
+            const lastMonth = new Date(today);
+            lastMonth.setDate(today.getDate() - 30);
+            dateFrom.value = lastMonth.toISOString().split('T')[0];
+            dateTo.value = today.toISOString().split('T')[0];
+            break;
+        case 'expiry':
+            // Next 90 days
+            const nextThreeMonths = new Date(today);
+            nextThreeMonths.setDate(today.getDate() + 90);
+            dateFrom.value = today.toISOString().split('T')[0];
+            dateTo.value = nextThreeMonths.toISOString().split('T')[0];
+            break;
+        default:
+            // Clear dates for stock reports
+            dateFrom.value = '';
+            dateTo.value = '';
+    }
+});
+
+// Form validation
+document.getElementById('reportForm').addEventListener('submit', function(e) {
+    const reportType = document.getElementById('report_type').value;
+    if (!reportType) {
+        e.preventDefault();
+        alert('Please select a report type.');
+        return false;
+    }
+    
+    // Show loading state
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Generating...';
+    submitBtn.disabled = true;
+    
+    // Re-enable button after 5 seconds (in case of errors)
+    setTimeout(() => {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }, 5000);
+});
+
+// Print functionality
+function printReport() {
+    window.print();
+}
+
+// Export functionality
+function exportReport(format) {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('format', format);
+    window.location.href = currentUrl.toString();
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey) {
+        switch(e.key) {
+            case 'p':
+                e.preventDefault();
+                printReport();
+                break;
+            case 'e':
+                e.preventDefault();
+                exportReport('excel');
+                break;
+        }
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,580 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Transactions - Pharmacy Management{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Transactions</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-1">Transaction History</h4>
+        <p class="text-muted mb-0">Track all stock movements and transactions</p>
+    </div>
+    <div>
+        {% if user.is_staff %}
+            <a href="{% url 'medicines:add_transaction' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Add Transaction
+            </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Total Transactions</h6>
+                        <h4 class="mb-0">{{ total_transactions|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-exchange-alt"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-success text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Stock In</h6>
+                        <h4 class="mb-0">{{ stock_in_count|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-arrow-down"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-danger text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Stock Out</h6>
+                        <h4 class="mb-0">{{ stock_out_count|default:0 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-arrow-up"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3 mb-3">
+        <div class="card bg-info text-white">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="card-title mb-1">Today's Value</h6>
+                        <h4 class="mb-0">${{ todays_value|default:0|floatformat:2 }}</h4>
+                    </div>
+                    <div class="fs-1 opacity-50">
+                        <i class="fas fa-dollar-sign"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ request.GET.search }}" placeholder="Medicine name, user...">
+            </div>
+            
+            <div class="col-md-2">
+                <label for="transaction_type" class="form-label">Type</label>
+                <select class="form-select" id="transaction_type" name="transaction_type">
+                    <option value="">All Types</option>
+                    <option value="in" {% if request.GET.transaction_type == 'in' %}selected{% endif %}>Stock In</option>
+                    <option value="out" {% if request.GET.transaction_type == 'out' %}selected{% endif %}>Stock Out</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="reason" class="form-label">Reason</label>
+                <select class="form-select" id="reason" name="reason">
+                    <option value="">All Reasons</option>
+                    <option value="purchase" {% if request.GET.reason == 'purchase' %}selected{% endif %}>Purchase</option>
+                    <option value="sale" {% if request.GET.reason == 'sale' %}selected{% endif %}>Sale</option>
+                    <option value="return" {% if request.GET.reason == 'return' %}selected{% endif %}>Return</option>
+                    <option value="expired" {% if request.GET.reason == 'expired' %}selected{% endif %}>Expired</option>
+                    <option value="damaged" {% if request.GET.reason == 'damaged' %}selected{% endif %}>Damaged</option>
+                    <option value="adjustment" {% if request.GET.reason == 'adjustment' %}selected{% endif %}>Adjustment</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" class="form-control" id="date_from" name="date_from" 
+                       value="{{ request.GET.date_from }}">
+            </div>
+            
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" class="form-control" id="date_to" name="date_to" 
+                       value="{{ request.GET.date_to }}">
+            </div>
+            
+            <div class="col-md-1">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+        
+        {% if request.GET %}
+            <div class="mt-3">
+                <a href="{% url 'medicines:transactions' %}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times me-1"></i>Clear Filters
+                </a>
+                <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-outline-success btn-sm">
+                    <i class="fas fa-download me-1"></i>Export CSV
+                </a>
+                <a href="?{{ request.GET.urlencode }}&export=pdf" class="btn btn-outline-danger btn-sm">
+                    <i class="fas fa-file-pdf me-1"></i>Export PDF
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Transactions Table -->
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-list me-2"></i>Transaction History
+                {% if transactions %}
+                    <span class="badge bg-secondary ms-2">{{ transactions|length }} of {{ total_transactions }}</span>
+                {% endif %}
+            </h6>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary" id="refreshBtn">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="fas fa-print"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if transactions %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Date & Time</th>
+                            <th>Medicine</th>
+                            <th>Type</th>
+                            <th>Quantity</th>
+                            <th>Unit Price</th>
+                            <th>Total Value</th>
+                            <th>Stock Before</th>
+                            <th>Stock After</th>
+                            <th>Reason</th>
+                            <th>User</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for transaction in transactions %}
+                        <tr>
+                            <td>
+                                <div class="fw-medium">{{ transaction.created_at|date:"M d, Y" }}</div>
+                                <small class="text-muted">{{ transaction.created_at|time:"H:i" }}</small>
+                            </td>
+                            <td>
+                                <div class="fw-medium">
+                                    <a href="{% url 'medicines:medicine_detail' transaction.medicine.pk %}" 
+                                       class="text-decoration-none">
+                                        {{ transaction.medicine.name }}
+                                    </a>
+                                </div>
+                                <small class="text-muted">{{ transaction.medicine.strength }}</small>
+                            </td>
+                            <td>
+                                {% if transaction.transaction_type == 'in' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-arrow-down me-1"></i>Stock In
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-arrow-up me-1"></i>Stock Out
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="fw-medium {% if transaction.transaction_type == 'in' %}text-success{% else %}text-danger{% endif %}">
+                                    {% if transaction.transaction_type == 'in' %}+{% else %}-{% endif %}{{ transaction.quantity }}
+                                </span>
+                            </td>
+                            <td>${{ transaction.unit_price|floatformat:2 }}</td>
+                            <td>
+                                <span class="fw-medium">${{ transaction.total_value|floatformat:2 }}</span>
+                            </td>
+                            <td>{{ transaction.stock_before }}</td>
+                            <td>
+                                <span class="{% if transaction.stock_after <= transaction.medicine.minimum_stock_level %}text-danger{% elif transaction.stock_after <= transaction.medicine.minimum_stock_level * 1.5 %}text-warning{% else %}text-success{% endif %}">
+                                    {{ transaction.stock_after }}
+                                </span>
+                            </td>
+                            <td>
+                                {% if transaction.reason %}
+                                    <span class="badge bg-light text-dark">{{ transaction.get_reason_display }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="fw-medium">{{ transaction.user.get_full_name|default:transaction.user.username }}</div>
+                                <small class="text-muted">{{ transaction.user.get_role_display|default:"User" }}</small>
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button type="button" class="btn btn-outline-primary" 
+                                            data-bs-toggle="modal" data-bs-target="#transactionModal{{ transaction.pk }}">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if user.is_staff and transaction.can_be_reversed %}
+                                        <button type="button" class="btn btn-outline-warning" 
+                                                onclick="reverseTransaction({{ transaction.pk }})">
+                                            <i class="fas fa-undo"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <!-- Transaction Detail Modal -->
+                        <div class="modal fade" id="transactionModal{{ transaction.pk }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Transaction Details</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6 class="text-muted">Transaction Information</h6>
+                                                <table class="table table-sm">
+                                                    <tr>
+                                                        <td><strong>ID:</strong></td>
+                                                        <td>{{ transaction.pk }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Date:</strong></td>
+                                                        <td>{{ transaction.created_at|date:"M d, Y H:i" }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Type:</strong></td>
+                                                        <td>
+                                                            {% if transaction.transaction_type == 'in' %}
+                                                                <span class="badge bg-success">Stock In</span>
+                                                            {% else %}
+                                                                <span class="badge bg-danger">Stock Out</span>
+                                                            {% endif %}
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Reason:</strong></td>
+                                                        <td>{{ transaction.get_reason_display|default:"-" }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>User:</strong></td>
+                                                        <td>{{ transaction.user.get_full_name|default:transaction.user.username }}</td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <h6 class="text-muted">Medicine & Stock Information</h6>
+                                                <table class="table table-sm">
+                                                    <tr>
+                                                        <td><strong>Medicine:</strong></td>
+                                                        <td>{{ transaction.medicine.name }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Strength:</strong></td>
+                                                        <td>{{ transaction.medicine.strength }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Quantity:</strong></td>
+                                                        <td>{{ transaction.quantity }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Unit Price:</strong></td>
+                                                        <td>${{ transaction.unit_price|floatformat:2 }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Total Value:</strong></td>
+                                                        <td><strong>${{ transaction.total_value|floatformat:2 }}</strong></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Stock Before:</strong></td>
+                                                        <td>{{ transaction.stock_before }}</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td><strong>Stock After:</strong></td>
+                                                        <td>{{ transaction.stock_after }}</td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+                                        </div>
+                                        
+                                        {% if transaction.batch_number or transaction.expiry_date %}
+                                            <div class="row mt-3">
+                                                <div class="col-12">
+                                                    <h6 class="text-muted">Additional Information</h6>
+                                                    <table class="table table-sm">
+                                                        {% if transaction.batch_number %}
+                                                            <tr>
+                                                                <td><strong>Batch Number:</strong></td>
+                                                                <td>{{ transaction.batch_number }}</td>
+                                                            </tr>
+                                                        {% endif %}
+                                                        {% if transaction.expiry_date %}
+                                                            <tr>
+                                                                <td><strong>Expiry Date:</strong></td>
+                                                                <td>{{ transaction.expiry_date|date:"M d, Y" }}</td>
+                                                            </tr>
+                                                        {% endif %}
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                        
+                                        {% if transaction.notes %}
+                                            <div class="row mt-3">
+                                                <div class="col-12">
+                                                    <h6 class="text-muted">Notes</h6>
+                                                    <p class="mb-0">{{ transaction.notes }}</p>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        {% if user.is_staff and transaction.can_be_reversed %}
+                                            <button type="button" class="btn btn-warning" 
+                                                    onclick="reverseTransaction({{ transaction.pk }})">
+                                                <i class="fas fa-undo me-2"></i>Reverse Transaction
+                                            </button>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+                <div class="card-footer">
+                    <nav aria-label="Transaction pagination">
+                        <ul class="pagination pagination-sm justify-content-center mb-0">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page=1">
+                                        <i class="fas fa-angle-double-left"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.previous_page_number }}">
+                                        <i class="fas fa-angle-left"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.next_page_number }}">
+                                        <i class="fas fa-angle-right"></i>
+                                    </a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}page={{ page_obj.paginator.num_pages }}">
+                                        <i class="fas fa-angle-double-right"></i>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-exchange-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No Transactions Found</h5>
+                <p class="text-muted mb-4">No transactions match your current filters.</p>
+                {% if user.is_staff %}
+                    <a href="{% url 'medicines:add_transaction' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Add First Transaction
+                    </a>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh functionality
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', function() {
+            location.reload();
+        });
+    }
+    
+    // Auto-refresh every 60 seconds
+    setInterval(() => {
+        if (!document.hidden) {
+            location.reload();
+        }
+    }, 60000);
+    
+    // Date range validation
+    const dateFrom = document.getElementById('date_from');
+    const dateTo = document.getElementById('date_to');
+    
+    function validateDateRange() {
+        if (dateFrom.value && dateTo.value) {
+            if (new Date(dateFrom.value) > new Date(dateTo.value)) {
+                dateTo.setCustomValidity('End date must be after start date');
+            } else {
+                dateTo.setCustomValidity('');
+            }
+        }
+    }
+    
+    dateFrom.addEventListener('change', validateDateRange);
+    dateTo.addEventListener('change', validateDateRange);
+    
+    // Quick date filters
+    const quickFilters = {
+        'today': function() {
+            const today = new Date().toISOString().split('T')[0];
+            dateFrom.value = today;
+            dateTo.value = today;
+        },
+        'yesterday': function() {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const dateStr = yesterday.toISOString().split('T')[0];
+            dateFrom.value = dateStr;
+            dateTo.value = dateStr;
+        },
+        'week': function() {
+            const today = new Date();
+            const weekAgo = new Date();
+            weekAgo.setDate(today.getDate() - 7);
+            dateFrom.value = weekAgo.toISOString().split('T')[0];
+            dateTo.value = today.toISOString().split('T')[0];
+        },
+        'month': function() {
+            const today = new Date();
+            const monthAgo = new Date();
+            monthAgo.setMonth(today.getMonth() - 1);
+            dateFrom.value = monthAgo.toISOString().split('T')[0];
+            dateTo.value = today.toISOString().split('T')[0];
+        }
+    };
+    
+    // Add quick filter buttons (you can add these to the template if needed)
+    window.setQuickFilter = function(filter) {
+        if (quickFilters[filter]) {
+            quickFilters[filter]();
+        }
+    };
+});
+
+// Reverse transaction function
+function reverseTransaction(transactionId) {
+    if (confirm('Are you sure you want to reverse this transaction? This action cannot be undone.')) {
+        // Here you would make an AJAX call to reverse the transaction
+        fetch(`/transactions/${transactionId}/reverse/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Transaction reversed successfully', 'success');
+                location.reload();
+            } else {
+                showAlert(data.error || 'Failed to reverse transaction', 'danger');
+            }
+        })
+        .catch(error => {
+            showAlert('An error occurred while reversing the transaction', 'danger');
+        });
+    }
+}
+
+function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

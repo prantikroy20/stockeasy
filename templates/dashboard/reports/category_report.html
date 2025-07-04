@@ -1,0 +1,376 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Category Report - Pharmacy Management{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:reports' %}">Reports</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Category Report</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="alert alert-success d-flex align-items-center mb-3">
+    <i class="fas fa-tags me-2"></i>
+    <div>
+        <strong>Category Report:</strong> Comprehensive analysis of medicine categories including stock levels, values, and performance metrics.
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-success">
+            <tr>
+                <th>Category Name</th>
+                <th>Description</th>
+                <th>Total Medicines</th>
+                <th>Total Stock</th>
+                <th>Stock Value</th>
+                <th>Low Stock Items</th>
+                <th>Expired Items</th>
+                <th>Avg Unit Price</th>
+                <th>Last Updated</th>
+                <th>Performance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for category in report_data %}
+            <tr>
+                <td>
+                    <strong>{{ category.name }}</strong>
+                    {% if category.is_active %}
+                        <span class="badge bg-success ms-2">Active</span>
+                    {% else %}
+                        <span class="badge bg-secondary ms-2">Inactive</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if category.description %}
+                        <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ category.description }}">
+                            {{ category.description }}
+                        </span>
+                    {% else %}
+                        <span class="text-muted">No description</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-primary">{{ category.medicine_count }}</span>
+                </td>
+                <td>
+                    <strong>{{ category.total_stock|default:0 }}</strong>
+                    {% if category.total_stock > 0 %}
+                        <br><small class="text-muted">{{ category.stock_percentage|floatformat:1 }}% of total</small>
+                    {% endif %}
+                </td>
+                <td>
+                    <strong>${{ category.stock_value|floatformat:2|default:"0.00" }}</strong>
+                    {% if category.stock_value > 0 %}
+                        <br><small class="text-muted">{{ category.value_percentage|floatformat:1 }}% of total</small>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if category.low_stock_count > 0 %}
+                        <span class="badge bg-warning">{{ category.low_stock_count }}</span>
+                        <br><small class="text-warning">{{ category.low_stock_percentage|floatformat:1 }}% of category</small>
+                    {% else %}
+                        <span class="badge bg-success">0</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if category.expired_count > 0 %}
+                        <span class="badge bg-danger">{{ category.expired_count }}</span>
+                        <br><small class="text-danger">{{ category.expired_percentage|floatformat:1 }}% of category</small>
+                    {% else %}
+                        <span class="badge bg-success">0</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if category.avg_unit_price %}
+                        ${{ category.avg_unit_price|floatformat:2 }}
+                        <br><small class="text-muted">Range: ${{ category.min_price|floatformat:2 }} - ${{ category.max_price|floatformat:2 }}</small>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {{ category.updated_at|date:"M d, Y" }}<br>
+                    <small class="text-muted">{{ category.updated_at|timesince }} ago</small>
+                </td>
+                <td>
+                    {% if category.performance_score >= 80 %}
+                        <span class="badge bg-success">Excellent</span>
+                    {% elif category.performance_score >= 60 %}
+                        <span class="badge bg-info">Good</span>
+                    {% elif category.performance_score >= 40 %}
+                        <span class="badge bg-warning">Fair</span>
+                    {% else %}
+                        <span class="badge bg-danger">Poor</span>
+                    {% endif %}
+                    <br><small class="text-muted">{{ category.performance_score|floatformat:0 }}%</small>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-center py-4">
+                    <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                    <p class="text-muted mb-0">No categories found.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        {% if report_data %}
+        <tfoot class="table-secondary">
+            <tr>
+                <th colspan="4">Totals:</th>
+                <th>${{ total_category_value|floatformat:2|default:"0.00" }}</th>
+                <th>{{ total_low_stock|default:0 }}</th>
+                <th>{{ total_expired|default:0 }}</th>
+                <th colspan="3">{{ report_data|length }} categor{{ report_data|length|pluralize:"y,ies" }}</th>
+            </tr>
+        </tfoot>
+        {% endif %}
+    </table>
+</div>
+
+{% if report_data %}
+<!-- Summary Statistics -->
+<div class="row mt-3">
+    <div class="col-md-2">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ report_data|length }}</h5>
+                <p class="card-text">Total Categories</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <h5 class="card-title text-success">{{ active_categories|default:0 }}</h5>
+                <p class="card-text">Active Categories</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <h5 class="card-title text-info">{{ total_medicines|default:0 }}</h5>
+                <p class="card-text">Total Medicines</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <h5 class="card-title text-warning">{{ total_low_stock|default:0 }}</h5>
+                <p class="card-text">Low Stock Items</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-danger">
+            <div class="card-body">
+                <h5 class="card-title text-danger">{{ total_expired|default:0 }}</h5>
+                <p class="card-text">Expired Items</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card text-center border-secondary">
+            <div class="card-body">
+                <h5 class="card-title text-secondary">${{ total_category_value|floatformat:2|default:"0.00" }}</h5>
+                <p class="card-text">Total Value</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Performing Categories -->
+<div class="row mt-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h6 class="mb-0"><i class="fas fa-trophy me-2"></i>Top Performing Categories</h6>
+            </div>
+            <div class="card-body">
+                {% if top_performing_categories %}
+                {% for category in top_performing_categories %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">{{ category.name }}</h6>
+                        <small class="text-muted">{{ category.medicine_count }} medicines • ${{ category.stock_value|floatformat:2 }} value</small>
+                    </div>
+                    <div class="text-end">
+                        <span class="badge bg-success">{{ category.performance_score|floatformat:0 }}%</span>
+                        <div class="progress mt-1" style="width: 100px; height: 6px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ category.performance_score }}%"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No performance data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>Highest Value Categories</h6>
+            </div>
+            <div class="card-body">
+                {% if highest_value_categories %}
+                {% for category in highest_value_categories %}
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h6 class="mb-0">{{ category.name }}</h6>
+                        <small class="text-muted">{{ category.medicine_count }} medicines • {{ category.value_percentage|floatformat:1 }}% of total</small>
+                    </div>
+                    <div class="text-end">
+                        <strong class="text-info">${{ category.stock_value|floatformat:2 }}</strong>
+                        <div class="progress mt-1" style="width: 100px; height: 6px;">
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: {% widthratio category.stock_value highest_value_categories.0.stock_value 100 %}%"></div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted text-center">No value data available.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Categories Needing Attention -->
+{% if categories_needing_attention %}
+<div class="card mt-3">
+    <div class="card-header bg-warning text-dark">
+        <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Categories Needing Attention</h6>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Issues</th>
+                        <th>Impact</th>
+                        <th>Recommended Action</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in categories_needing_attention %}
+                    <tr>
+                        <td><strong>{{ category.name }}</strong></td>
+                        <td>
+                            {% if category.low_stock_count > 0 %}
+                                <span class="badge bg-warning me-1">{{ category.low_stock_count }} Low Stock</span>
+                            {% endif %}
+                            {% if category.expired_count > 0 %}
+                                <span class="badge bg-danger me-1">{{ category.expired_count }} Expired</span>
+                            {% endif %}
+                            {% if category.out_of_stock_count > 0 %}
+                                <span class="badge bg-dark me-1">{{ category.out_of_stock_count }} Out of Stock</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="{% if category.impact_level == 'high' %}text-danger{% elif category.impact_level == 'medium' %}text-warning{% else %}text-info{% endif %}">
+                                {{ category.impact_level|title }} Impact
+                            </span>
+                        </td>
+                        <td>
+                            <small>{{ category.recommended_action }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if category.priority == 'high' %}danger{% elif category.priority == 'medium' %}warning{% else %}info{% endif %}">
+                                {{ category.priority|title }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+<!-- Category Distribution Chart Data -->
+<div class="card mt-3">
+    <div class="card-header">
+        <h6 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Category Distribution Analysis</h6>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>By Medicine Count:</h6>
+                {% for category in report_data|slice:":5" %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>{{ category.name }}</span>
+                    <div class="d-flex align-items-center">
+                        <div class="progress me-2" style="width: 100px; height: 8px;">
+                            <div class="progress-bar" role="progressbar" 
+                                 style="width: {% widthratio category.medicine_count total_medicines 100 %}%"></div>
+                        </div>
+                        <small class="text-muted">{{ category.medicine_count }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="col-md-6">
+                <h6>By Stock Value:</h6>
+                {% for category in highest_value_categories|slice:":5" %}
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span>{{ category.name }}</span>
+                    <div class="d-flex align-items-center">
+                        <div class="progress me-2" style="width: 100px; height: 8px;">
+                            <div class="progress-bar bg-info" role="progressbar" 
+                                 style="width: {% widthratio category.stock_value total_category_value 100 %}%"></div>
+                        </div>
+                        <small class="text-muted">${{ category.stock_value|floatformat:0 }}</small>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Insights and Recommendations -->
+<div class="alert alert-info mt-3">
+    <h6><i class="fas fa-lightbulb me-2"></i>Key Insights & Recommendations</h6>
+    <div class="row">
+        <div class="col-md-6">
+            <h6>Insights:</h6>
+            <ul class="mb-0">
+                <li>{{ most_valuable_category.name }} is the highest value category ({{ most_valuable_category.value_percentage|floatformat:1 }}% of total value)</li>
+                <li>{{ largest_category.name }} has the most medicines ({{ largest_category.medicine_count }} items)</li>
+                {% if categories_with_issues %}
+                <li>{{ categories_with_issues }} categor{{ categories_with_issues|pluralize:"y,ies" }} need{{ categories_with_issues|pluralize:"s," }} immediate attention</li>
+                {% endif %}
+                <li>Average category performance score: {{ avg_performance_score|floatformat:1 }}%</li>
+            </ul>
+        </div>
+        <div class="col-md-6">
+            <h6>Recommendations:</h6>
+            <ul class="mb-0">
+                <li>Focus restocking efforts on high-value categories</li>
+                <li>Review minimum stock levels for underperforming categories</li>
+                <li>Consider consolidating categories with low medicine counts</li>
+                <li>Implement category-specific expiry management strategies</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}

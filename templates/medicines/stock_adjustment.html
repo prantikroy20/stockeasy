@@ -1,0 +1,446 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Stock Adjustment - {{ medicine.name }} - Pharmacy Management{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'medicines:medicine_list' %}">Medicines</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'medicines:medicine_detail' medicine.pk %}">{{ medicine.name }}</a></li>
+        <li class="breadcrumb-item active" aria-current="page">Stock Adjustment</li>
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Medicine Info Card -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-1">{{ medicine.name }}</h5>
+                        <p class="text-muted mb-1">{{ medicine.generic_name }} - {{ medicine.strength }}</p>
+                        <p class="text-muted mb-0">{{ medicine.category.name }} | {{ medicine.dosage_form }}</p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <div class="d-flex flex-column align-items-md-end">
+                            <span class="badge bg-{% if medicine.stock_quantity <= medicine.minimum_stock_level %}danger{% elif medicine.stock_quantity <= medicine.minimum_stock_level * 1.5 %}warning{% else %}success{% endif %} mb-2">
+                                Current Stock: {{ medicine.stock_quantity }}
+                            </span>
+                            <small class="text-muted">Min Level: {{ medicine.minimum_stock_level }}</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Adjustment Form -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-exchange-alt me-2"></i>Stock Adjustment
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Adjustment Type -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <label class="form-label">Adjustment Type <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group" aria-label="Adjustment type">
+                                <input type="radio" class="btn-check" name="adjustment_type" id="add_stock" value="add" checked>
+                                <label class="btn btn-outline-success" for="add_stock">
+                                    <i class="fas fa-plus me-2"></i>Add Stock
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="adjustment_type" id="remove_stock" value="remove">
+                                <label class="btn btn-outline-danger" for="remove_stock">
+                                    <i class="fas fa-minus me-2"></i>Remove Stock
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="adjustment_type" id="set_stock" value="set">
+                                <label class="btn btn-outline-primary" for="set_stock">
+                                    <i class="fas fa-edit me-2"></i>Set Stock
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quantity Input -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label for="quantity" class="form-label">
+                                <span id="quantity-label">Quantity to Add</span> <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                                <span class="input-group-text">units</span>
+                            </div>
+                            <div class="invalid-feedback"></div>
+                            <div class="form-text" id="quantity-help">Enter the quantity to add to current stock</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="reason" class="form-label">
+                                Reason <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="reason" name="reason" required>
+                                <option value="">Select reason...</option>
+                                <optgroup label="Stock Addition">
+                                    <option value="purchase">New Purchase</option>
+                                    <option value="return">Customer Return</option>
+                                    <option value="transfer_in">Transfer In</option>
+                                    <option value="correction_add">Stock Correction (Add)</option>
+                                </optgroup>
+                                <optgroup label="Stock Removal">
+                                    <option value="sale">Sale/Dispensed</option>
+                                    <option value="expired">Expired</option>
+                                    <option value="damaged">Damaged</option>
+                                    <option value="transfer_out">Transfer Out</option>
+                                    <option value="correction_remove">Stock Correction (Remove)</option>
+                                    <option value="theft">Theft/Loss</option>
+                                </optgroup>
+                                <optgroup label="Other">
+                                    <option value="audit">Stock Audit</option>
+                                    <option value="other">Other</option>
+                                </optgroup>
+                            </select>
+                            <div class="invalid-feedback"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label for="batch_number" class="form-label">Batch Number</label>
+                            <input type="text" class="form-control" id="batch_number" name="batch_number" placeholder="Optional">
+                            <div class="form-text">Enter batch number if applicable</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="expiry_date" class="form-label">Expiry Date</label>
+                            <input type="date" class="form-control" id="expiry_date" name="expiry_date">
+                            <div class="form-text">For new stock additions</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-12 mb-3">
+                            <label for="notes" class="form-label">Notes</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="3" placeholder="Additional notes or comments..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Stock Preview -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-info" id="stock-preview">
+                                <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Stock Preview</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>Current Stock:</strong><br>
+                                        <span class="fs-5">{{ medicine.stock_quantity }} units</span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Adjustment:</strong><br>
+                                        <span class="fs-5" id="adjustment-display">+0 units</span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>New Stock:</strong><br>
+                                        <span class="fs-5" id="new-stock-display">{{ medicine.stock_quantity }} units</span>
+                                    </div>
+                                </div>
+                                <div class="mt-2" id="stock-warning" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                    <span id="warning-message"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <a href="{% url 'medicines:medicine_detail' medicine.pk %}" class="btn btn-secondary">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </a>
+                                </div>
+                                <div>
+                                    <button type="submit" class="btn btn-primary" id="submit-btn">
+                                        <i class="fas fa-save me-2"></i>Apply Adjustment
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Recent Transactions -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Recent Stock Transactions
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if recent_transactions %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Quantity</th>
+                                    <th>Reason</th>
+                                    <th>User</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td>{{ transaction.created_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        {% if transaction.transaction_type == 'in' %}
+                                            <span class="badge bg-success">Stock In</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Stock Out</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if transaction.transaction_type == 'in' %}
+                                            <span class="text-success">+{{ transaction.quantity }}</span>
+                                        {% else %}
+                                            <span class="text-danger">-{{ transaction.quantity }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ transaction.reason|default:"-" }}</td>
+                                    <td>{{ transaction.user.get_full_name|default:transaction.user.username }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No recent transactions found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const currentStock = {{ medicine.stock_quantity }};
+    const minimumLevel = {{ medicine.minimum_stock_level }};
+    
+    const adjustmentTypeInputs = document.querySelectorAll('input[name="adjustment_type"]');
+    const quantityInput = document.getElementById('quantity');
+    const quantityLabel = document.getElementById('quantity-label');
+    const quantityHelp = document.getElementById('quantity-help');
+    const adjustmentDisplay = document.getElementById('adjustment-display');
+    const newStockDisplay = document.getElementById('new-stock-display');
+    const stockWarning = document.getElementById('stock-warning');
+    const warningMessage = document.getElementById('warning-message');
+    const submitBtn = document.getElementById('submit-btn');
+    const reasonSelect = document.getElementById('reason');
+    
+    // Update UI based on adjustment type
+    function updateAdjustmentType() {
+        const selectedType = document.querySelector('input[name="adjustment_type"]:checked').value;
+        
+        switch(selectedType) {
+            case 'add':
+                quantityLabel.textContent = 'Quantity to Add';
+                quantityHelp.textContent = 'Enter the quantity to add to current stock';
+                quantityInput.min = '1';
+                quantityInput.max = '';
+                submitBtn.innerHTML = '<i class="fas fa-plus me-2"></i>Add Stock';
+                submitBtn.className = 'btn btn-success';
+                break;
+            case 'remove':
+                quantityLabel.textContent = 'Quantity to Remove';
+                quantityHelp.textContent = 'Enter the quantity to remove from current stock';
+                quantityInput.min = '1';
+                quantityInput.max = currentStock;
+                submitBtn.innerHTML = '<i class="fas fa-minus me-2"></i>Remove Stock';
+                submitBtn.className = 'btn btn-danger';
+                break;
+            case 'set':
+                quantityLabel.textContent = 'New Stock Level';
+                quantityHelp.textContent = 'Enter the new total stock quantity';
+                quantityInput.min = '0';
+                quantityInput.max = '';
+                submitBtn.innerHTML = '<i class="fas fa-edit me-2"></i>Set Stock';
+                submitBtn.className = 'btn btn-primary';
+                break;
+        }
+        
+        updateStockPreview();
+        updateReasonOptions();
+    }
+    
+    // Update reason dropdown based on adjustment type
+    function updateReasonOptions() {
+        const selectedType = document.querySelector('input[name="adjustment_type"]:checked').value;
+        const options = reasonSelect.querySelectorAll('option');
+        
+        options.forEach(option => {
+            if (option.value === '') return; // Keep the default option
+            
+            const optgroup = option.parentElement;
+            if (selectedType === 'add' && optgroup.label === 'Stock Addition') {
+                option.style.display = '';
+            } else if (selectedType === 'remove' && optgroup.label === 'Stock Removal') {
+                option.style.display = '';
+            } else if (selectedType === 'set' && optgroup.label === 'Other') {
+                option.style.display = '';
+            } else if (optgroup.label === 'Other') {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+        
+        // Reset selection if current option is hidden
+        if (reasonSelect.selectedOptions[0] && reasonSelect.selectedOptions[0].style.display === 'none') {
+            reasonSelect.value = '';
+        }
+    }
+    
+    // Update stock preview
+    function updateStockPreview() {
+        const selectedType = document.querySelector('input[name="adjustment_type"]:checked').value;
+        const quantity = parseInt(quantityInput.value) || 0;
+        let newStock = currentStock;
+        let adjustment = 0;
+        
+        switch(selectedType) {
+            case 'add':
+                adjustment = quantity;
+                newStock = currentStock + quantity;
+                adjustmentDisplay.textContent = `+${quantity} units`;
+                adjustmentDisplay.className = 'fs-5 text-success';
+                break;
+            case 'remove':
+                adjustment = -quantity;
+                newStock = currentStock - quantity;
+                adjustmentDisplay.textContent = `-${quantity} units`;
+                adjustmentDisplay.className = 'fs-5 text-danger';
+                break;
+            case 'set':
+                adjustment = quantity - currentStock;
+                newStock = quantity;
+                if (adjustment > 0) {
+                    adjustmentDisplay.textContent = `+${adjustment} units`;
+                    adjustmentDisplay.className = 'fs-5 text-success';
+                } else if (adjustment < 0) {
+                    adjustmentDisplay.textContent = `${adjustment} units`;
+                    adjustmentDisplay.className = 'fs-5 text-danger';
+                } else {
+                    adjustmentDisplay.textContent = 'No change';
+                    adjustmentDisplay.className = 'fs-5 text-muted';
+                }
+                break;
+        }
+        
+        newStockDisplay.textContent = `${newStock} units`;
+        
+        // Show warnings
+        let warnings = [];
+        
+        if (newStock < 0) {
+            warnings.push('Stock cannot be negative!');
+            newStockDisplay.className = 'fs-5 text-danger';
+        } else if (newStock <= minimumLevel) {
+            warnings.push(`Stock will be below minimum level (${minimumLevel})`);
+            newStockDisplay.className = 'fs-5 text-warning';
+        } else {
+            newStockDisplay.className = 'fs-5 text-success';
+        }
+        
+        if (selectedType === 'remove' && quantity > currentStock) {
+            warnings.push('Cannot remove more than current stock!');
+        }
+        
+        if (warnings.length > 0) {
+            warningMessage.textContent = warnings.join(' ');
+            stockWarning.style.display = 'block';
+            submitBtn.disabled = newStock < 0 || (selectedType === 'remove' && quantity > currentStock);
+        } else {
+            stockWarning.style.display = 'none';
+            submitBtn.disabled = false;
+        }
+    }
+    
+    // Event listeners
+    adjustmentTypeInputs.forEach(input => {
+        input.addEventListener('change', updateAdjustmentType);
+    });
+    
+    quantityInput.addEventListener('input', updateStockPreview);
+    
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const quantity = parseInt(quantityInput.value);
+        const reason = reasonSelect.value;
+        const selectedType = document.querySelector('input[name="adjustment_type"]:checked').value;
+        
+        if (!quantity || quantity <= 0) {
+            e.preventDefault();
+            quantityInput.classList.add('is-invalid');
+            quantityInput.nextElementSibling.nextElementSibling.textContent = 'Please enter a valid quantity';
+            return;
+        }
+        
+        if (!reason) {
+            e.preventDefault();
+            reasonSelect.classList.add('is-invalid');
+            reasonSelect.nextElementSibling.textContent = 'Please select a reason';
+            return;
+        }
+        
+        if (selectedType === 'remove' && quantity > currentStock) {
+            e.preventDefault();
+            alert('Cannot remove more stock than currently available!');
+            return;
+        }
+        
+        // Confirmation dialog
+        const newStock = selectedType === 'add' ? currentStock + quantity : 
+                        selectedType === 'remove' ? currentStock - quantity : quantity;
+        
+        const confirmMessage = `Are you sure you want to ${selectedType} ${quantity} units?\n\n` +
+                              `Current Stock: ${currentStock}\n` +
+                              `New Stock: ${newStock}\n` +
+                              `Reason: ${reasonSelect.options[reasonSelect.selectedIndex].text}`;
+        
+        if (!confirm(confirmMessage)) {
+            e.preventDefault();
+        }
+    });
+    
+    // Initialize
+    updateAdjustmentType();
+    
+    // Auto-refresh every 30 seconds
+    setInterval(() => {
+        if (!document.hidden) {
+            location.reload();
+        }
+    }, 30000);
+});
+</script>
+{% endblock %}

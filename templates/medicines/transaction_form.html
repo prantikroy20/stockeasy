@@ -1,0 +1,639 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+{% if form.instance.pk %}
+    Edit Transaction - Pharmacy Management
+{% else %}
+    Add New Transaction - Pharmacy Management
+{% endif %}
+{% endblock %}
+
+{% block breadcrumb %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'medicines:transactions' %}">Transactions</a></li>
+        {% if form.instance.pk %}
+            <li class="breadcrumb-item active" aria-current="page">Edit Transaction</li>
+        {% else %}
+            <li class="breadcrumb-item active" aria-current="page">Add Transaction</li>
+        {% endif %}
+    </ol>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-exchange-alt me-2"></i>
+                    {% if form.instance.pk %}
+                        Edit Transaction
+                    {% else %}
+                        Add New Transaction
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <!-- Transaction Type Selection -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-muted border-bottom pb-2 mb-3">
+                                <i class="fas fa-info-circle me-2"></i>Transaction Type
+                            </h6>
+                            <div class="btn-group w-100" role="group" aria-label="Transaction type">
+                                <input type="radio" class="btn-check" name="transaction_type" id="stock_in" value="in" 
+                                       {% if not form.instance.pk or form.instance.transaction_type == 'in' %}checked{% endif %}>
+                                <label class="btn btn-outline-success" for="stock_in">
+                                    <i class="fas fa-arrow-down me-2"></i>Stock In
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="transaction_type" id="stock_out" value="out"
+                                       {% if form.instance.pk and form.instance.transaction_type == 'out' %}checked{% endif %}>
+                                <label class="btn btn-outline-danger" for="stock_out">
+                                    <i class="fas fa-arrow-up me-2"></i>Stock Out
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Medicine Selection -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-muted border-bottom pb-2 mb-3">
+                                <i class="fas fa-pills me-2"></i>Medicine Information
+                            </h6>
+                        </div>
+                        
+                        <div class="col-md-8 mb-3">
+                            <label for="{{ form.medicine.id_for_label }}" class="form-label">
+                                {{ form.medicine.label }} <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                {{ form.medicine }}
+                                <button type="button" class="btn btn-outline-secondary" id="searchMedicineBtn">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            {% if form.medicine.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.medicine.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Select the medicine for this transaction</div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Current Stock</label>
+                            <div class="form-control-plaintext" id="current-stock-display">
+                                <span class="text-muted">Select medicine first</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Transaction Details -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-muted border-bottom pb-2 mb-3">
+                                <i class="fas fa-calculator me-2"></i>Transaction Details
+                            </h6>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.quantity.id_for_label }}" class="form-label">
+                                {{ form.quantity.label }} <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                {{ form.quantity }}
+                                <span class="input-group-text">units</span>
+                            </div>
+                            {% if form.quantity.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.quantity.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text" id="quantity-help">Enter the quantity</div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label for="{{ form.unit_price.id_for_label }}" class="form-label">
+                                {{ form.unit_price.label }} <span class="text-danger">*</span>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {{ form.unit_price }}
+                            </div>
+                            {% if form.unit_price.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.unit_price.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Price per unit</div>
+                        </div>
+                        
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Total Value</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="text" class="form-control" id="total-value" readonly>
+                            </div>
+                            <div class="form-text">Calculated automatically</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.reason.id_for_label }}" class="form-label">
+                                {{ form.reason.label }} <span class="text-danger">*</span>
+                            </label>
+                            {{ form.reason }}
+                            {% if form.reason.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.reason.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.transaction_date.id_for_label }}" class="form-label">
+                                {{ form.transaction_date.label }}
+                            </label>
+                            {{ form.transaction_date }}
+                            {% if form.transaction_date.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.transaction_date.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Leave blank for current date/time</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Additional Information -->
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6 class="text-muted border-bottom pb-2 mb-3">
+                                <i class="fas fa-info me-2"></i>Additional Information
+                            </h6>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.batch_number.id_for_label }}" class="form-label">
+                                {{ form.batch_number.label }}
+                            </label>
+                            {{ form.batch_number }}
+                            {% if form.batch_number.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.batch_number.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Optional batch number</div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="{{ form.expiry_date.id_for_label }}" class="form-label">
+                                {{ form.expiry_date.label }}
+                            </label>
+                            {{ form.expiry_date }}
+                            {% if form.expiry_date.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.expiry_date.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">For stock in transactions</div>
+                        </div>
+                        
+                        <div class="col-12 mb-3">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">
+                                {{ form.notes.label }}
+                            </label>
+                            {{ form.notes }}
+                            {% if form.notes.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.notes.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">Additional notes or comments</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Stock Preview -->
+                    <div class="row mb-4" id="stock-preview-section" style="display: none;">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Stock Preview</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <strong>Current Stock:</strong><br>
+                                        <span class="fs-6" id="preview-current-stock">-</span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Transaction:</strong><br>
+                                        <span class="fs-6" id="preview-transaction">-</span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>New Stock:</strong><br>
+                                        <span class="fs-6" id="preview-new-stock">-</span>
+                                    </div>
+                                </div>
+                                <div class="mt-2" id="stock-warning" style="display: none;">
+                                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                    <span id="warning-message"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <a href="{% url 'medicines:transactions' %}" class="btn btn-secondary">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </a>
+                                </div>
+                                <div>
+                                    <button type="submit" class="btn btn-primary" id="submit-btn">
+                                        <i class="fas fa-save me-2"></i>
+                                        {% if form.instance.pk %}Update Transaction{% else %}Add Transaction{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Medicine Search Modal -->
+<div class="modal fade" id="medicineSearchModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Search Medicine</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="medicineSearchInput" 
+                           placeholder="Search by name, generic name, or category...">
+                </div>
+                <div id="medicineSearchResults">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-search fa-2x mb-2"></i>
+                        <p>Start typing to search for medicines</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const medicineSelect = document.getElementById('id_medicine');
+    const quantityInput = document.getElementById('id_quantity');
+    const unitPriceInput = document.getElementById('id_unit_price');
+    const totalValueInput = document.getElementById('total-value');
+    const currentStockDisplay = document.getElementById('current-stock-display');
+    const transactionTypeInputs = document.querySelectorAll('input[name="transaction_type"]');
+    const reasonSelect = document.getElementById('id_reason');
+    const stockPreviewSection = document.getElementById('stock-preview-section');
+    const submitBtn = document.getElementById('submit-btn');
+    
+    // Medicine data cache
+    let medicineData = {};
+    
+    // Update transaction type styling
+    function updateTransactionType() {
+        const selectedType = document.querySelector('input[name="transaction_type"]:checked').value;
+        
+        if (selectedType === 'in') {
+            submitBtn.innerHTML = '<i class="fas fa-arrow-down me-2"></i>Add Stock In';
+            submitBtn.className = 'btn btn-success';
+            document.getElementById('quantity-help').textContent = 'Enter quantity to add to stock';
+        } else {
+            submitBtn.innerHTML = '<i class="fas fa-arrow-up me-2"></i>Add Stock Out';
+            submitBtn.className = 'btn btn-danger';
+            document.getElementById('quantity-help').textContent = 'Enter quantity to remove from stock';
+        }
+        
+        updateReasonOptions();
+        updateStockPreview();
+    }
+    
+    // Update reason options based on transaction type
+    function updateReasonOptions() {
+        const selectedType = document.querySelector('input[name="transaction_type"]:checked').value;
+        const options = reasonSelect.querySelectorAll('option');
+        
+        // Define reason mappings
+        const stockInReasons = ['purchase', 'return', 'transfer_in', 'correction_add'];
+        const stockOutReasons = ['sale', 'expired', 'damaged', 'transfer_out', 'correction_remove', 'theft'];
+        
+        options.forEach(option => {
+            if (option.value === '') return; // Keep default option
+            
+            if (selectedType === 'in' && stockInReasons.includes(option.value)) {
+                option.style.display = '';
+            } else if (selectedType === 'out' && stockOutReasons.includes(option.value)) {
+                option.style.display = '';
+            } else if (['audit', 'other'].includes(option.value)) {
+                option.style.display = '';
+            } else {
+                option.style.display = 'none';
+            }
+        });
+        
+        // Reset selection if current option is hidden
+        if (reasonSelect.selectedOptions[0] && reasonSelect.selectedOptions[0].style.display === 'none') {
+            reasonSelect.value = '';
+        }
+    }
+    
+    // Calculate total value
+    function calculateTotal() {
+        const quantity = parseFloat(quantityInput.value) || 0;
+        const unitPrice = parseFloat(unitPriceInput.value) || 0;
+        const total = quantity * unitPrice;
+        totalValueInput.value = total.toFixed(2);
+        updateStockPreview();
+    }
+    
+    // Update stock preview
+    function updateStockPreview() {
+        const medicineId = medicineSelect.value;
+        const quantity = parseInt(quantityInput.value) || 0;
+        const selectedType = document.querySelector('input[name="transaction_type"]:checked').value;
+        
+        if (!medicineId || !medicineData[medicineId]) {
+            stockPreviewSection.style.display = 'none';
+            return;
+        }
+        
+        const medicine = medicineData[medicineId];
+        const currentStock = medicine.stock_quantity;
+        const minimumLevel = medicine.minimum_stock_level;
+        
+        let newStock = currentStock;
+        if (selectedType === 'in') {
+            newStock = currentStock + quantity;
+        } else {
+            newStock = currentStock - quantity;
+        }
+        
+        // Update preview displays
+        document.getElementById('preview-current-stock').textContent = `${currentStock} units`;
+        
+        const transactionDisplay = document.getElementById('preview-transaction');
+        if (selectedType === 'in') {
+            transactionDisplay.textContent = `+${quantity} units`;
+            transactionDisplay.className = 'fs-6 text-success';
+        } else {
+            transactionDisplay.textContent = `-${quantity} units`;
+            transactionDisplay.className = 'fs-6 text-danger';
+        }
+        
+        const newStockDisplay = document.getElementById('preview-new-stock');
+        newStockDisplay.textContent = `${newStock} units`;
+        
+        // Show warnings
+        const stockWarning = document.getElementById('stock-warning');
+        const warningMessage = document.getElementById('warning-message');
+        let warnings = [];
+        
+        if (newStock < 0) {
+            warnings.push('Stock cannot be negative!');
+            newStockDisplay.className = 'fs-6 text-danger';
+            submitBtn.disabled = true;
+        } else if (selectedType === 'out' && quantity > currentStock) {
+            warnings.push('Cannot remove more than current stock!');
+            newStockDisplay.className = 'fs-6 text-danger';
+            submitBtn.disabled = true;
+        } else {
+            submitBtn.disabled = false;
+            if (newStock <= minimumLevel) {
+                warnings.push(`Stock will be below minimum level (${minimumLevel})`);
+                newStockDisplay.className = 'fs-6 text-warning';
+            } else {
+                newStockDisplay.className = 'fs-6 text-success';
+            }
+        }
+        
+        if (warnings.length > 0) {
+            warningMessage.textContent = warnings.join(' ');
+            stockWarning.style.display = 'block';
+        } else {
+            stockWarning.style.display = 'none';
+        }
+        
+        stockPreviewSection.style.display = 'block';
+    }
+    
+    // Load medicine data when selected
+    function loadMedicineData() {
+        const medicineId = medicineSelect.value;
+        if (!medicineId) {
+            currentStockDisplay.innerHTML = '<span class="text-muted">Select medicine first</span>';
+            stockPreviewSection.style.display = 'none';
+            return;
+        }
+        
+        if (medicineData[medicineId]) {
+            updateMedicineDisplay(medicineData[medicineId]);
+            return;
+        }
+        
+        // Fetch medicine data via AJAX
+        fetch(`/api/medicines/${medicineId}/`)
+            .then(response => response.json())
+            .then(data => {
+                medicineData[medicineId] = data;
+                updateMedicineDisplay(data);
+            })
+            .catch(error => {
+                console.error('Error loading medicine data:', error);
+                currentStockDisplay.innerHTML = '<span class="text-danger">Error loading data</span>';
+            });
+    }
+    
+    function updateMedicineDisplay(medicine) {
+        const stockClass = medicine.stock_quantity <= medicine.minimum_stock_level ? 'text-danger' : 
+                          medicine.stock_quantity <= medicine.minimum_stock_level * 1.5 ? 'text-warning' : 'text-success';
+        
+        currentStockDisplay.innerHTML = `
+            <span class="${stockClass} fw-bold">${medicine.stock_quantity} units</span><br>
+            <small class="text-muted">Min: ${medicine.minimum_stock_level}</small>
+        `;
+        
+        // Set unit price if not already set
+        if (!unitPriceInput.value) {
+            unitPriceInput.value = medicine.unit_price;
+            calculateTotal();
+        }
+        
+        updateStockPreview();
+    }
+    
+    // Medicine search functionality
+    const searchBtn = document.getElementById('searchMedicineBtn');
+    const searchModal = new bootstrap.Modal(document.getElementById('medicineSearchModal'));
+    const searchInput = document.getElementById('medicineSearchInput');
+    const searchResults = document.getElementById('medicineSearchResults');
+    
+    searchBtn.addEventListener('click', function() {
+        searchModal.show();
+        searchInput.focus();
+    });
+    
+    let searchTimeout;
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+        
+        if (query.length < 2) {
+            searchResults.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="fas fa-search fa-2x mb-2"></i>
+                    <p>Start typing to search for medicines</p>
+                </div>
+            `;
+            return;
+        }
+        
+        searchTimeout = setTimeout(() => {
+            searchMedicines(query);
+        }, 300);
+    });
+    
+    function searchMedicines(query) {
+        searchResults.innerHTML = `
+            <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+                <span class="ms-2">Searching...</span>
+            </div>
+        `;
+        
+        fetch(`/api/medicines/search/?q=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.results.length === 0) {
+                    searchResults.innerHTML = `
+                        <div class="text-center text-muted">
+                            <i class="fas fa-search fa-2x mb-2"></i>
+                            <p>No medicines found matching "${query}"</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '<div class="list-group">';
+                data.results.forEach(medicine => {
+                    const stockClass = medicine.stock_quantity <= medicine.minimum_stock_level ? 'text-danger' : 
+                                      medicine.stock_quantity <= medicine.minimum_stock_level * 1.5 ? 'text-warning' : 'text-success';
+                    
+                    html += `
+                        <a href="#" class="list-group-item list-group-item-action" 
+                           onclick="selectMedicine(${medicine.id}, '${medicine.name}')">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">${medicine.name}</h6>
+                                    <p class="mb-1 text-muted">${medicine.generic_name} - ${medicine.strength}</p>
+                                    <small class="text-muted">${medicine.category_name}</small>
+                                </div>
+                                <div class="text-end">
+                                    <span class="badge bg-light text-dark">$${medicine.unit_price}</span><br>
+                                    <small class="${stockClass}">${medicine.stock_quantity} units</small>
+                                </div>
+                            </div>
+                        </a>
+                    `;
+                });
+                html += '</div>';
+                searchResults.innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Search error:', error);
+                searchResults.innerHTML = `
+                    <div class="text-center text-danger">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                        <p>Error searching medicines</p>
+                    </div>
+                `;
+            });
+    }
+    
+    // Global function to select medicine from search
+    window.selectMedicine = function(medicineId, medicineName) {
+        medicineSelect.value = medicineId;
+        loadMedicineData();
+        searchModal.hide();
+        searchInput.value = '';
+    };
+    
+    // Event listeners
+    transactionTypeInputs.forEach(input => {
+        input.addEventListener('change', updateTransactionType);
+    });
+    
+    medicineSelect.addEventListener('change', loadMedicineData);
+    quantityInput.addEventListener('input', calculateTotal);
+    unitPriceInput.addEventListener('input', calculateTotal);
+    
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        let isValid = true;
+        
+        // Validate required fields
+        const requiredFields = [medicineSelect, quantityInput, unitPriceInput, reasonSelect];
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        // Validate stock levels for stock out
+        const selectedType = document.querySelector('input[name="transaction_type"]:checked').value;
+        const medicineId = medicineSelect.value;
+        const quantity = parseInt(quantityInput.value) || 0;
+        
+        if (selectedType === 'out' && medicineId && medicineData[medicineId]) {
+            const currentStock = medicineData[medicineId].stock_quantity;
+            if (quantity > currentStock) {
+                quantityInput.classList.add('is-invalid');
+                isValid = false;
+                alert('Cannot remove more stock than currently available!');
+            }
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            // Scroll to first invalid field
+            const firstInvalid = form.querySelector('.is-invalid');
+            if (firstInvalid) {
+                firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstInvalid.focus();
+            }
+        }
+    });
+    
+    // Initialize
+    updateTransactionType();
+    if (medicineSelect.value) {
+        loadMedicineData();
+    }
+});
+</script>
+{% endblock %}
